@@ -483,7 +483,7 @@ int open_port(const char *name)
 		snprintf(buf, sizeof(buf), "\\\\.\\COM%d", n);
 		name = buf;
 	}
-	port_handle = CreateFile(name, GENERIC_READ | GENERIC_WRITE,
+	port_handle = CreateFileA(name, GENERIC_READ | GENERIC_WRITE,
 		0, 0, OPEN_EXISTING, FILE_FLAG_OVERLAPPED, NULL);
 	if (port_handle == INVALID_HANDLE_VALUE) {
 		return 0;
