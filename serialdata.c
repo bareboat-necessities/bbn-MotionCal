@@ -265,7 +265,7 @@ static int ascii_parse(const unsigned char *data, int len)
 			} else if (*p == ',') {
 				//printf("ascii_parse comma, %d\n", ascii_num);
 				if (ascii_neg) ascii_num = -ascii_num;
-				if (ascii_num < -32768 && ascii_num > 32767) goto fail;
+				if (((int16_t)ascii_num) != ascii_num) goto fail;
 				if (ascii_raw_data_count >= 8) goto fail;
 				ascii_raw_data[ascii_raw_data_count++] = ascii_num;
 				ascii_num = 0;
@@ -274,7 +274,7 @@ static int ascii_parse(const unsigned char *data, int len)
 			} else if (*p == 13) {
 				//printf("ascii_parse newline\n");
 				if (ascii_neg) ascii_num = -ascii_num;
-				if (ascii_num < -32768 && ascii_num > 32767) goto fail;
+				if (((int16_t)ascii_num) != ascii_num) goto fail;
 				if (ascii_raw_data_count != 8) goto fail;
 				ascii_raw_data[ascii_raw_data_count] = ascii_num;
 				raw_data(ascii_raw_data);
