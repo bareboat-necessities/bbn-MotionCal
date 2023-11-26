@@ -32,10 +32,10 @@ else ifeq ($(OS), MACOSX_CLANG)
 ALL = MotionCal.app
 CC = /usr/bin/clang
 CXX = /usr/bin/clang++
-CFLAGS = -O2 -Wall -DMACOSX
-WXCONFIG = wx-config
+CFLAGS = -O2 -Wall -DMACOSX -DGL_SILENCE_DEPRECATION
+WXCONFIG = ~/Documents/code/wxWidgets-3.2.4/wx-config
 WXFLAGS = `$(WXCONFIG) --cppflags`
-CXXFLAGS = $(CFLAGS) `$(WXCONFIG) --cppflags`
+CXXFLAGS = -std=c++11 $(CFLAGS) `$(WXCONFIG) --cppflags`
 SFLAG =
 CLILIBS = -lglut -lGLU -lGL -lm
 VERSION = 0.01

@@ -211,6 +211,9 @@ wxArrayString serial_port_list()
 	// neither keyspan nor rxtx properly release memory allocated.
 	// more documentation at:
 	// http://developer.apple.com/documentation/DeviceDrivers/Conceptual/WorkingWSerial/WWSerial_SerialDevs/chapter_2_section_6.html
+	#if (MAC_OS_X_VERSION_MIN_REQUIRED >= 120000)
+		#define IOMasterPort IOMainPort
+	#endif
 	mach_port_t masterPort;
 	CFMutableDictionaryRef classesToMatch;
 	io_iterator_t serialPortIterator;
