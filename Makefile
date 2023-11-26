@@ -7,8 +7,10 @@ ifeq ($(OS), LINUX)
 ALL = MotionCal imuread
 CC = gcc
 CXX = g++
-CFLAGS = -O2 -Wall -D$(OS)
-WXCONFIG = ~/wxwidgets/3.0.2.gtk2-opengl/bin/wx-config
+AR = ar
+RANLIB = ranlib
+CFLAGS = -O2 -Wall -D$(OS) -I./libcalib
+WXCONFIG = wx-config
 WXFLAGS = `$(WXCONFIG) --cppflags`
 CXXFLAGS = $(CFLAGS) `$(WXCONFIG) --cppflags`
 LDFLAGS =
@@ -20,7 +22,7 @@ else ifeq ($(OS), MACOSX)
 ALL = MotionCal.dmg
 CC = gcc-4.2
 CXX = g++-4.2
-CFLAGS = -O2 -Wall -D$(OS)
+CFLAGS = -O2 -Wall -D$(OS) -I./libcalib
 WXCONFIG = ~/wxwidgets/3.0.2.mac-opengl/bin/wx-config
 WXFLAGS = `$(WXCONFIG) --cppflags`
 CXXFLAGS = $(CFLAGS) `$(WXCONFIG) --cppflags`
@@ -32,7 +34,9 @@ else ifeq ($(OS), MACOSX_CLANG)
 ALL = MotionCal.app
 CC = /usr/bin/clang
 CXX = /usr/bin/clang++
-CFLAGS = -O2 -Wall -DMACOSX
+AR = /usr/bin/ar
+RANLIB = /usr/bin/ranlib
+CFLAGS = -O2 -Wall -DMACOSX -I./libcalib
 WXCONFIG = wx-config
 WXFLAGS = `$(WXCONFIG) --cppflags`
 CXXFLAGS = $(CFLAGS) `$(WXCONFIG) --cppflags`
@@ -46,32 +50,42 @@ ALL = MotionCal.exe
 MINGW_TOOLCHAIN = i686-w64-mingw32
 CC = $(MINGW_TOOLCHAIN)-gcc
 CXX = $(MINGW_TOOLCHAIN)-g++
+AR = $(MINGW_TOOLCHAIN)-ar
+RANLIB = $(MINGW_TOOLCHAIN)-ranlib
 WINDRES = $(MINGW_TOOLCHAIN)-windres
-CFLAGS = -O2 -Wall -D$(OS)
+CFLAGS = -O2 -Wall -D$(OS) -I./libcalib
 WXFLAGS = `$(WXCONFIG) --cppflags`
 CXXFLAGS = $(CFLAGS) $(WXFLAGS)
 LDFLAGS = -static -static-libgcc
 SFLAG = -s
 #WXCONFIG = ~/wxwidgets/3.0.2.mingw-opengl-i586/bin/wx-config
 #WXCONFIG = ~/wxwidgets/3.0.2.mingw-opengl/bin/wx-config
-WXCONFIG = ~/wxwidgets/3.1.0.mingw-opengl/bin/wx-config
+#WXCONFIG = ~/wxwidgets/3.1.0.mingw-opengl/bin/wx-config
+WXCONFIG = ../wxWidgets-3.1.0/wx-config
 CLILIBS = -lglut32 -lglu32 -lopengl32 -lm
 MAKEFLAGS = --jobs=12
+# ?= can detect empty vs undefined. thus it gets set to notwsl only when not defined at all
+# then we can use ifdef to tell whether or not we are running under WSL.
+WSLENV ?= notwsl
 
 endif
 
-OBJS = visualize.o serialdata.o rawdata.o magcal.o matrix.o fusion.o quality.o mahony.o
+LIB_OBJS = libcalib/libcalib.o
+OBJS = visualize.o serialdata.o rawdata.o magcal.o matrix.o fusion.o quality.o mahony.o libcalib/libcalib.a
 IMGS = checkgreen.png checkempty.png checkemptygray.png
 
 all: $(ALL)
 
 MotionCal: gui.o portlist.o images.o $(OBJS)
-	$(CXX) $(SFLAG) $(CFLAGS) $(LDFLAGS) -o $@ $^ `$(WXCONFIG) --libs all,opengl`
+	$(CXX) $(SFLAG) $(CFLAGS) $(LDFLAGS) -o $@ $^ `$(WXCONFIG) --libs all,opengl` $(CLILIBS)
 
 MotionCal.exe: resource.o gui.o portlist.o images.o $(OBJS)
 	$(CXX) $(SFLAG) $(CFLAGS) $(LDFLAGS) -o $@ $^ `$(WXCONFIG) --libs all,opengl`
+ifdef WSLENV
+	# confusingly, if WSLENV is not empty, we are NOT inside WSL
 	-pjrcwinsigntool $@
 	-./cp_windows.sh $@
+endif
 
 resource.o: resource.rc icon.ico
 	$(WINDRES) $(WXFLAGS) -o resource.o resource.rc
@@ -97,8 +111,11 @@ MotionCal.dmg: MotionCal.app
 imuread: imuread.o $(OBJS)
 	$(CC) -s $(CFLAGS) $(LDFLAGS) -o $@ $^ $(CLILIBS)
 
+imuread: 
+
 clean:
 	rm -f gui MotionCal imuread *.o *.exe *.sign? images.cpp
+	rm -f libcalib/*.o libcalib/*.a
 	rm -rf MotionCal.app MotionCal.dmg .DS_Store dmg_tmpdir
 
 gui.o: gui.cpp gui.h imuread.h Makefile
@@ -112,4 +129,10 @@ matrix.o: matrix.c imuread.h Makefile
 fusion.o: fusion.c imuread.h Makefile
 quality.o: quality.c imuread.h Makefile
 mahony.o: mahony.c imuread.h Makefile
+
+libcalib/libcalib.o: libcalib/libcalib.cpp libcalib/libcalib.h Makefile
+
+libcalib/libcalib.a: $(LIB_OBJS)
+	$(AR) rc $@ $+
+	$(RANLIB) $@
 
