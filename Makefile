@@ -20,14 +20,18 @@ MAKEFLAGS = --jobs=12
 
 else ifeq ($(OS), MACOSX)
 ALL = MotionCal.dmg
-CC = gcc-4.2
-CXX = g++-4.2
-CFLAGS = -O2 -Wall -D$(OS) -I./libcalib
-WXCONFIG = ~/wxwidgets/3.0.2.mac-opengl/bin/wx-config
+CC = gcc
+CXX = g++
+CFLAGS = -O2 -Wall -D$(OS) -DGL_SILENCE_DEPRECATION -I./libcalib
+AR = /usr/bin/ar
+RANLIB = /usr/bin/ranlib
+# brew install wxwidgets
+WXCONFIG = wx-config
 WXFLAGS = `$(WXCONFIG) --cppflags`
-CXXFLAGS = $(CFLAGS) `$(WXCONFIG) --cppflags`
-SFLAG = -s
-CLILIBS = -lglut -lGLU -lGL -lm
+CXXFLAGS = -std=c++11 $(CFLAGS) `$(WXCONFIG) --cppflags`
+SFLAG = 
+# wx-config --libs opengl seems to take care of these now
+#CLILIBS = -lglut -lGLU -lGL -lm
 VERSION = 0.01
 
 else ifeq ($(OS), MACOSX_CLANG)
@@ -41,7 +45,8 @@ WXCONFIG = wx-config
 WXFLAGS = `$(WXCONFIG) --cppflags`
 CXXFLAGS = -std=c++11 $(CFLAGS) `$(WXCONFIG) --cppflags`
 SFLAG =
-CLILIBS = -lglut -lGLU -lGL -lm
+# wx-config --libs opengl seems to take care of these now
+#CLILIBS = -lglut -lGLU -lGL -lm
 VERSION = 0.01
 
 else ifeq ($(OS), WINDOWS)
