@@ -36,10 +36,10 @@ CC = /usr/bin/clang
 CXX = /usr/bin/clang++
 AR = /usr/bin/ar
 RANLIB = /usr/bin/ranlib
-CFLAGS = -O2 -Wall -DMACOSX -I./libcalib
+CFLAGS = -O2 -Wall -DMACOSX -DGL_SILENCE_DEPRECATION -I./libcalib
 WXCONFIG = wx-config
 WXFLAGS = `$(WXCONFIG) --cppflags`
-CXXFLAGS = $(CFLAGS) `$(WXCONFIG) --cppflags`
+CXXFLAGS = -std=c++11 $(CFLAGS) `$(WXCONFIG) --cppflags`
 SFLAG =
 CLILIBS = -lglut -lGLU -lGL -lm
 VERSION = 0.01
