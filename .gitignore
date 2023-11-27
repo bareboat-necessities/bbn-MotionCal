@@ -264,7 +264,9 @@ __pycache__/
 
 # MotionCal specific
 
+imuread
 MotionCal
 MotionCal.app
 MotionCal.dmg
-images.cpp
+MotionCal.exe
+src/images.cpp
