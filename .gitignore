@@ -70,6 +70,7 @@ artifacts/
 *.svclog
 *.scc
 *.o
+*.a
 
 # Chutzpah Test files
 _Chutzpah*
@@ -263,6 +264,9 @@ __pycache__/
 
 # MotionCal specific
 
+imuread
 MotionCal
 MotionCal.app
-images.cpp
+MotionCal.dmg
+MotionCal.exe
+src/images.cpp
