@@ -30,7 +30,10 @@
 // it up.
 //
 
-#include "imuread.h"
+#include "libcalib.h"
+
+#include <string.h>
+#include <math.h>
 
 #ifdef USE_NXP_FUSION
 

@@ -1,6 +1,5 @@
 #include "gui.h"
 #include "imuread.h"
-#include "libcalib.h"
 
 
 
@@ -456,8 +455,6 @@ MyApp::MyApp()
 
 bool MyApp::OnInit()
 {
-	libcalib_print_newline();
-
 	// make sure we exit properly on macosx
 	SetExitOnFrameDelete(true);
 
