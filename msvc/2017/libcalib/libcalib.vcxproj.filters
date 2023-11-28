@@ -15,39 +15,31 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="$(AppSourceDirectory)\gui.cpp">
+    <ClCompile Include="$(LibSourceDirectory)\fusion.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="$(AppSourceDirectory)\portlist.cpp">
+    <ClCompile Include="$(LibSourceDirectory)\magcal.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="$(AppSourceDirectory)\serialdata.c">
+    <ClCompile Include="$(LibSourceDirectory)\mahony.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="$(AppSourceDirectory)\visualize.c">
+    <ClCompile Include="$(LibSourceDirectory)\matrix.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="$(AppVisualStudioDirectory)\images.cpp">
+    <ClCompile Include="$(LibSourceDirectory)\quality.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\src\imuread.c">
+    <ClCompile Include="$(LibSourceDirectory)\rawdata.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="$(LibSourceDirectory)\libcalib.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="$(AppSourceDirectory)\gui.h">
+    <ClInclude Include="$(LibSourceDirectory)\libcalib.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\src\imuread.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-  </ItemGroup>
-  <ItemGroup>
-    <ResourceCompile Include="$(AppSourceDirectory)\resource.rc">
-      <Filter>Resource Files</Filter>
-    </ResourceCompile>
-    <ResourceCompile Include="$(AppVisualStudioDirectory)\images.rc">
-      <Filter>Resource Files</Filter>
-    </ResourceCompile>
   </ItemGroup>
 </Project>

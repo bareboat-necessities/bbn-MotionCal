@@ -9,7 +9,7 @@ CC = gcc
 CXX = g++
 AR = ar
 RANLIB = ranlib
-CFLAGS = -O2 -Wall -D$(OS) -I./src -I./libcalib
+CFLAGS = -O2 -Wall -D$(OS) -I./src -I.
 WXCONFIG = wx-config
 WXFLAGS = `$(WXCONFIG) --cppflags`
 CXXFLAGS = $(CFLAGS) `$(WXCONFIG) --cppflags`
@@ -22,7 +22,7 @@ else ifeq ($(OS), MACOSX)
 ALL = MotionCal.dmg
 CC = gcc
 CXX = g++
-CFLAGS = -O2 -Wall -D$(OS) -DGL_SILENCE_DEPRECATION -I./src -I./libcalib
+CFLAGS = -O2 -Wall -D$(OS) -DGL_SILENCE_DEPRECATION -I./src -I.
 AR = /usr/bin/ar
 RANLIB = /usr/bin/ranlib
 # brew install wxwidgets
@@ -40,7 +40,7 @@ CC = /usr/bin/clang
 CXX = /usr/bin/clang++
 AR = /usr/bin/ar
 RANLIB = /usr/bin/ranlib
-CFLAGS = -O2 -Wall -DMACOSX -DGL_SILENCE_DEPRECATION -I./src -I./libcalib
+CFLAGS = -O2 -Wall -DMACOSX -DGL_SILENCE_DEPRECATION -I./src -I.
 WXCONFIG = wx-config
 WXFLAGS = `$(WXCONFIG) --cppflags`
 CXXFLAGS = -std=c++11 $(CFLAGS) `$(WXCONFIG) --cppflags`
@@ -58,7 +58,7 @@ CXX = $(MINGW_TOOLCHAIN)-g++
 AR = $(MINGW_TOOLCHAIN)-ar
 RANLIB = $(MINGW_TOOLCHAIN)-ranlib
 WINDRES = $(MINGW_TOOLCHAIN)-windres
-CFLAGS = -O2 -Wall -D$(OS) -I./src -I./libcalib
+CFLAGS = -O2 -Wall -D$(OS) -I./src -I.
 WXFLAGS = `$(WXCONFIG) --cppflags`
 CXXFLAGS = $(CFLAGS) $(WXFLAGS)
 LDFLAGS = -static -static-libgcc
@@ -141,6 +141,8 @@ clean:
 	rm -f src/*.o src/*.a
 	rm -rf MotionCal.app MotionCal.dmg .DS_Store dmg_tmpdir
 
+src/imuread.h: libcalib/libcalib.h 
+
 src/imuread.o: src/imuread.c src/imuread.h Makefile
 
 src/gui.o: src/gui.cpp src/gui.h src/imuread.h Makefile
@@ -148,12 +150,12 @@ src/portlist.o: src/portlist.cpp src/gui.h Makefile
 src/visualize.o: src/visualize.c src/imuread.h Makefile
 src/serialdata.o: src/serialdata.c src/imuread.h Makefile
 
-libcalib/rawdata.o: libcalib/rawdata.c src/imuread.h Makefile
-libcalib/magcal.o: libcalib/magcal.c src/imuread.h Makefile
-libcalib/matrix.o: libcalib/matrix.c src/imuread.h Makefile
-libcalib/fusion.o: libcalib/fusion.c src/imuread.h Makefile
-libcalib/quality.o: libcalib/quality.c src/imuread.h Makefile
-libcalib/mahony.o: libcalib/mahony.c src/imuread.h Makefile
+libcalib/rawdata.o: libcalib/rawdata.c libcalib/libcalib.h Makefile
+libcalib/magcal.o: libcalib/magcal.c libcalib/libcalib.h Makefile
+libcalib/matrix.o: libcalib/matrix.c libcalib/libcalib.h Makefile
+libcalib/fusion.o: libcalib/fusion.c libcalib/libcalib.h Makefile
+libcalib/quality.o: libcalib/quality.c libcalib/libcalib.h Makefile
+libcalib/mahony.o: libcalib/mahony.c libcalib/libcalib.h Makefile
 
 libcalib/libcalib.o: libcalib/libcalib.cpp libcalib/libcalib.h Makefile
 

@@ -26,7 +26,10 @@
 //
 // This file contains matrix manipulation functions.
 //
-#include "imuread.h"
+
+#include "libcalib.h"
+
+#include <math.h>
 
 // compile time constants that are private to this file
 #define CORRUPTMATRIX 0.001F			// column vector modulus limit for rotation matrix

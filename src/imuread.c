@@ -3,7 +3,7 @@
 #include "imuread.h"
 #include <GL/glut.h> // sudo apt-get install xorg-dev libglu1-mesa-dev freeglut3-dev
 
-#include "libcalib.h"
+#include "libcalib/libcalib.h"
 
 void die(const char *format, ...) __attribute__ ((format (printf, 1, 2)));
 
@@ -106,8 +106,6 @@ void calibration_confirmed(void)
 
 int main(int argc, char *argv[])
 {
-	libcalib_print_newline();
-
 	raw_data_reset();
 
 	glutInit(&argc, argv);

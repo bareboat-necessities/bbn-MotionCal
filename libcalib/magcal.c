@@ -32,7 +32,9 @@
 // Haha - This file has been edited!  Please do not blame or pester NXP (formerly
 //        Freescale) about the "almost inevitable" issues!
 
-#include "imuread.h"
+#include "libcalib.h"
+
+#include <math.h>
 
 #define FXOS8700_UTPERCOUNT  0.1f
 #define DEFAULTB 50.0F				// default geomagnetic field (uT)
