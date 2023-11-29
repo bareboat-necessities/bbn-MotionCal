@@ -150,12 +150,12 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="$(LibSourceDirectory)\libcalib.h" />
-    <ClCompile Include="$(LibSourceDirectory)\fusion.c" />
-    <ClCompile Include="$(LibSourceDirectory)\magcal.c" />
-    <ClCompile Include="$(LibSourceDirectory)\mahony.c" />
-    <ClCompile Include="$(LibSourceDirectory)\matrix.c" />
-    <ClCompile Include="$(LibSourceDirectory)\quality.c" />
-    <ClCompile Include="$(LibSourceDirectory)\rawdata.c" />
+    <ClCompile Include="$(LibSourceDirectory)\fusion.cpp" />
+    <ClCompile Include="$(LibSourceDirectory)\magcal.cpp" />
+    <ClCompile Include="$(LibSourceDirectory)\mahony.cpp" />
+    <ClCompile Include="$(LibSourceDirectory)\matrix.cpp" />
+    <ClCompile Include="$(LibSourceDirectory)\quality.cpp" />
+    <ClCompile Include="$(LibSourceDirectory)\rawdata.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="$(LibSourceDirectory)\libcalib.cpp" />

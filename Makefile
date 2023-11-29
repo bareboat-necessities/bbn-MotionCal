@@ -143,19 +143,19 @@ clean:
 
 src/imuread.h: libcalib/libcalib.h 
 
-src/imuread.o: src/imuread.c src/imuread.h Makefile
+src/imuread.o: src/imuread.cpp src/imuread.h Makefile
 
 src/gui.o: src/gui.cpp src/gui.h src/imuread.h Makefile
 src/portlist.o: src/portlist.cpp src/gui.h Makefile
-src/visualize.o: src/visualize.c src/imuread.h Makefile
-src/serialdata.o: src/serialdata.c src/imuread.h Makefile
+src/visualize.o: src/visualize.cpp src/imuread.h Makefile
+src/serialdata.o: src/serialdata.cpp src/imuread.h Makefile
 
-libcalib/rawdata.o: libcalib/rawdata.c libcalib/libcalib.h Makefile
-libcalib/magcal.o: libcalib/magcal.c libcalib/libcalib.h Makefile
-libcalib/matrix.o: libcalib/matrix.c libcalib/libcalib.h Makefile
-libcalib/fusion.o: libcalib/fusion.c libcalib/libcalib.h Makefile
-libcalib/quality.o: libcalib/quality.c libcalib/libcalib.h Makefile
-libcalib/mahony.o: libcalib/mahony.c libcalib/libcalib.h Makefile
+libcalib/rawdata.o: libcalib/rawdata.cpp libcalib/libcalib.h Makefile
+libcalib/magcal.o: libcalib/magcal.cpp libcalib/libcalib.h Makefile
+libcalib/matrix.o: libcalib/matrix.cpp libcalib/libcalib.h Makefile
+libcalib/fusion.o: libcalib/fusion.cpp libcalib/libcalib.h Makefile
+libcalib/quality.o: libcalib/quality.cpp libcalib/libcalib.h Makefile
+libcalib/mahony.o: libcalib/mahony.cpp libcalib/libcalib.h Makefile
 
 libcalib/libcalib.o: libcalib/libcalib.cpp libcalib/libcalib.h Makefile
 

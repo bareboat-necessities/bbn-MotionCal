@@ -102,7 +102,7 @@ static int packet_encoded(const unsigned char *data, int len)
 	int buflen=0, copylen;
 
 	//printf("packet_encoded, len = %d\n", len);
-	p = memchr(data, 0x7D, len);
+	p = reinterpret_cast<const unsigned char *>(memchr(data, 0x7D, len));
 	if (p == NULL) {
 		return packet(data, len);
 	} else {
@@ -111,20 +111,20 @@ static int packet_encoded(const unsigned char *data, int len)
 			copylen = p - data;
 			if (copylen > 0) {
 				//printf("  copylen = %d\n", copylen);
-				if (buflen + copylen > sizeof(buf)) return 0;
+				if (buflen + copylen > int(sizeof(buf))) return 0;
 				memcpy(buf+buflen, data, copylen);
 				buflen += copylen;
 				data += copylen;
 				len -= copylen;
 			}
-			if (buflen + 1 > sizeof(buf)) return 0;
+			if (buflen + 1 > int(sizeof(buf))) return 0;
 			buf[buflen++] = (p[1] == 0x5E) ? 0x7E : 0x7D;
 			data += 2;
 			len -= 2;
 			if (len <= 0) break;
-			p = memchr(data, 0x7D, len);
+			p = reinterpret_cast<const unsigned char *>(memchr(data, 0x7D, len));
 			if (p == NULL) {
-				if (buflen + len > sizeof(buf)) return 0;
+				if (buflen + len > int(sizeof(buf))) return 0;
 				memcpy(buf+buflen, data, len);
 				buflen += len;
 				break;
@@ -145,7 +145,7 @@ static int packet_parse(const unsigned char *data, int len)
 
 	//print_data("packet_parse", data, len);
 	while (len > 0) {
-		p = memchr(data, 0x7E, len);
+		p = reinterpret_cast<const unsigned char *>(memchr(data, 0x7E, len));
 		if (p == NULL) {
 			if (packetlen + len > sizeof(packetbuf)) {
 				packetlen = 0;
@@ -400,7 +400,7 @@ int read_serial_data(void)
 	if (portfd < 0) return -1;
 	while (1) {
 		n = read(portfd, buf, sizeof(buf));
-		if (n > 0 && n <= sizeof(buf)) {
+		if (n > 0 && n <= int(sizeof(buf))) {
 			newdata(buf, n);
 			nodata_count = 0;
 			return n;

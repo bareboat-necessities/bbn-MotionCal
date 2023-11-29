@@ -21,16 +21,16 @@
     <ClCompile Include="$(AppSourceDirectory)\portlist.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="$(AppSourceDirectory)\serialdata.c">
+    <ClCompile Include="$(AppSourceDirectory)\serialdata.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="$(AppSourceDirectory)\visualize.c">
+    <ClCompile Include="$(AppSourceDirectory)\visualize.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="$(AppVisualStudioDirectory)\images.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\src\imuread.c">
+    <ClCompile Include="$(AppSourceDirectory)\imuread.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -38,7 +38,7 @@
     <ClInclude Include="$(AppSourceDirectory)\gui.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\src\imuread.h">
+    <ClInclude Include="$(AppSourceDirectory)\imuread.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
