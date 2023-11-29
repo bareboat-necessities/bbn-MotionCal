@@ -113,6 +113,8 @@ void eigencompute(float A[][10], float eigval[], float eigvec[][10], int8_t n);
 void fmatrixAeqInvA(float* A[], int8_t iColInd[], int8_t iRowInd[], int8_t iPivot[], int8_t isize);
 void fmatrixAeqRenormRotA(float A[][3]);
 
+void raw_data_reset(void);
+void raw_data(const int16_t* data);
 void apply_calibration(int16_t rawx, int16_t rawy, int16_t rawz, Point_t* out);
 
 
