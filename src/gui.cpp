@@ -441,6 +441,7 @@ void MyFrame::OnQuit( wxCommandEvent &event )
 MyFrame::~MyFrame(void)
 {
 	m_timer->Stop();
+	delete m_timer;
 	close_port();
 }
 
