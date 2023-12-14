@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
 VisualStudioVersion = 15.0.28307.1267
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "MotionCal", "MotionCal.vcxproj", "{CAA79469-08CA-422F-B1F0-568191FCBA3A}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "SensorCal", "SensorCal.vcxproj", "{CAA79469-08CA-422F-B1F0-568191FCBA3A}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "libcalib", "libcalib\libcalib.vcxproj", "{0A49EE6A-1DB1-48C8-93E2-5355B47783E9}"
 EndProject
