@@ -424,12 +424,17 @@ void MyFrame::OnPortList(wxCommandEvent& event)
 void MyFrame::OnAbout(wxCommandEvent &event)
 {
         wxMessageDialog dialog(this,
-                "MotionCal - Motion Sensor Calibration Tool\n\n"
-		"Paul Stoffregen <paul@pjrc.com>\n"
-		"http://www.pjrc.com/store/prop_shield.html\n"
-		"https://github.com/PaulStoffregen/MotionCal\n\n"
-		"Copyright 2018, PJRC.COM, LLC.",
-                "About MotionCal", wxOK|wxICON_INFORMATION|wxCENTER);
+				"SensorCal - Motion Sensor Calibration Tool\n"
+				"\n"
+				"Bruce Oberg <bruce@oberg.org>\n"
+				"https://github.com/bruceoberg/SensorCal\n"
+				"SensorCal Copyright 2023, Bruce Oberg\n"
+				"\n"
+				"Based on MotionCal by Paul Stoffregen <paul@pjrc.com>\n"
+				"http://www.pjrc.com/store/prop_shield.html\n"
+				"https://github.com/PaulStoffregen/MotionCal\n"
+				"MotionCal Copyright 2018, PJRC.COM, LLC.",
+				"About SensorCal", wxOK|wxICON_INFORMATION|wxCENTER);
         dialog.ShowModal();
 }
 
@@ -464,7 +469,7 @@ bool MyApp::OnInit()
 	MyFrame *frame = new MyFrame(NULL, -1, "Motion Sensor Calibration Tool",
 		pos, wxSize(1120,760), wxDEFAULT_FRAME_STYLE);
 #ifdef WINDOWS
-	frame->SetIcon(wxIcon("MotionCal"));
+	frame->SetIcon(wxIcon("SensorCal"));
 #endif
 	frame->Show( true );
 	return true;
