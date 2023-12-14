@@ -5,11 +5,11 @@
 <!-- Documentation for this format is at -->
 <!-- http://developer.apple.com/documentation/MacOSX/Conceptual/BPRuntimeConfig/Articles/ConfigFiles.html -->
 	<key>CFBundleDisplayName</key>
-	<string>Motion Calibrate</string>
+	<string>Sensor Calibrate</string>
 	<key>CFBundleIdentifier</key>
-	<string>com.pjrc.motioncal</string>
+	<string>org.oberg.sensorcal</string>
 	<key>CFBundleName</key>
-	<string>MotionCal</string>
+	<string>SensorCal</string>
 	<key>CFBundleShortVersionString</key>
 	<string>1.234</string>
 	<key>LSHasLocalizedDisplayName</key>
@@ -19,7 +19,7 @@
 	<key>NSAppleScriptEnabled</key>
 	<false/>
 	<key>CFBundleExecutable</key>
-	<string>MotionCal</string>
+	<string>SensorCal</string>
 	<key>CFBundleIconFile</key>
 	<string>icon.icns</string>
 	<key>CFBundlePackageType</key>
