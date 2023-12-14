@@ -1,12 +1,12 @@
-project(libmotioncal)
+project(libcalib)
 set(CMAKE_STATIC_LIBRARY_PREFIX "")
 
-add_library(libmotioncal STATIC)
+add_library(libcalib STATIC)
 
-target_sources(libmotioncal
+target_sources(libcalib
     PRIVATE
         src/fusion.cpp
-        src/libmotioncal.cpp
+        src/libcalib.cpp
 		src/magcal.cpp
 		src/mahony.cpp
 		src/matrix.cpp
@@ -14,4 +14,4 @@ target_sources(libmotioncal
 		src/rawdata.cpp
 )
 
-target_include_directories(libmotioncal PUBLIC ${PROJECT_SOURCE_DIR}/include)
+target_include_directories(libcalib PUBLIC ${PROJECT_SOURCE_DIR}/include)
