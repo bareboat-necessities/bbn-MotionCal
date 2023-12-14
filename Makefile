@@ -4,7 +4,7 @@ OS = LINUX
 #OS = WINDOWS
 
 ifeq ($(OS), LINUX)
-ALL = MotionCal imuread
+ALL = SensorCal imuread
 CC = gcc
 CXX = g++
 AR = ar
@@ -19,7 +19,7 @@ CLILIBS = -lglut -lGLU -lGL -lm
 MAKEFLAGS = --jobs=12
 
 else ifeq ($(OS), MACOSX)
-ALL = MotionCal.dmg
+ALL = SensorCal.dmg
 CC = gcc
 CXX = g++
 CFLAGS = -O2 -Wall -D$(OS) -DGL_SILENCE_DEPRECATION -I./src -I.
@@ -35,7 +35,7 @@ SFLAG =
 VERSION = 0.01
 
 else ifeq ($(OS), MACOSX_CLANG)
-ALL = MotionCal.app
+ALL = SensorCal.app
 CC = /usr/bin/clang
 CXX = /usr/bin/clang++
 AR = /usr/bin/ar
@@ -50,7 +50,7 @@ SFLAG =
 VERSION = 0.01
 
 else ifeq ($(OS), WINDOWS)
-ALL = MotionCal.exe
+ALL = SensorCal.exe
 #MINGW_TOOLCHAIN = i586-mingw32msvc
 MINGW_TOOLCHAIN = i686-w64-mingw32
 CC = $(MINGW_TOOLCHAIN)-gcc
@@ -98,10 +98,10 @@ IMGS = checkgreen.png checkempty.png checkemptygray.png
 
 all: $(ALL)
 
-MotionCal: $(GUI_OBJS) $(OBJS)
+SensorCal: $(GUI_OBJS) $(OBJS)
 	$(CXX) $(SFLAG) $(CFLAGS) $(LDFLAGS) -o $@ $^ `$(WXCONFIG) --libs all,opengl` $(CLILIBS)
 
-MotionCal.exe: src/resource.o $(GUI_OBJS) $(OBJS)
+SensorCal.exe: src/resource.o $(GUI_OBJS) $(OBJS)
 	$(CXX) $(SFLAG) $(CFLAGS) $(LDFLAGS) -o $@ $^ `$(WXCONFIG) --libs all,opengl`
 ifdef WSLENV
 	# confusingly, if WSLENV is not empty, we are NOT inside WSL
@@ -115,7 +115,7 @@ src/resource.o: src/resource.rc src/icon.ico
 src/images.cpp: $(IMGS) png2c.pl
 	perl png2c.pl $(IMGS) > src/images.cpp
 
-MotionCal.app: MotionCal Info.plist icon.icns
+SensorCal.app: SensorCal Info.plist icon.icns
 	mkdir -p $@/Contents/MacOS
 	mkdir -p $@/Contents/Resources/English.lproj
 	sed "s/1.234/$(VERSION)/g" Info.plist > $@/Contents/Info.plist
@@ -125,10 +125,10 @@ MotionCal.app: MotionCal Info.plist icon.icns
 	-pjrcmacsigntool $@
 	touch $@
 
-MotionCal.dmg: MotionCal.app
+SensorCal.dmg: SensorCal.app
 	mkdir -p dmg_tmpdir
 	cp -r $< dmg_tmpdir
-	hdiutil create -ov -srcfolder dmg_tmpdir -megabytes 20 -format UDBZ -volname MotionCal $@
+	hdiutil create -ov -srcfolder dmg_tmpdir -megabytes 20 -format UDBZ -volname SensorCal $@
 
 imuread: src/imuread.o $(OBJS)
 	$(CC) -s $(CFLAGS) $(LDFLAGS) -o $@ $^ $(CLILIBS)
@@ -136,10 +136,10 @@ imuread: src/imuread.o $(OBJS)
 imuread: 
 
 clean:
-	rm -f gui MotionCal imuread *.o *.exe *.sign? src/images.cpp
+	rm -f gui SensorCal imuread *.o *.exe *.sign? src/images.cpp
 	rm -f libcalib/*.o libcalib/*.a
 	rm -f src/*.o src/*.a
-	rm -rf MotionCal.app MotionCal.dmg .DS_Store dmg_tmpdir
+	rm -rf SensorCal.app SensorCal.dmg .DS_Store dmg_tmpdir
 
 src/imuread.h: libcalib/libcalib.h 
 

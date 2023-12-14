@@ -21,7 +21,7 @@
   <PropertyGroup Label="Globals">
     <VCProjectVersion>15.0</VCProjectVersion>
     <ProjectGuid>{CAA79469-08CA-422F-B1F0-568191FCBA3A}</ProjectGuid>
-    <RootNamespace>MotionCal</RootNamespace>
+    <RootNamespace>SensorCal</RootNamespace>
     <WindowsTargetPlatformVersion>10.0.19041.0</WindowsTargetPlatformVersion>
     <RepositoryDirectory>..\..</RepositoryDirectory>
     <AppSourceDirectory>$(RepositoryDirectory)\src</AppSourceDirectory>

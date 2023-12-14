@@ -262,11 +262,11 @@ paket-files/
 __pycache__/
 *.pyc
 
-# MotionCal specific
+# SensorCal specific
 
 imuread
-MotionCal
-MotionCal.app
-MotionCal.dmg
-MotionCal.exe
+SensorCal
+SensorCal.app
+SensorCal.dmg
+SensorCal.exe
 src/images.cpp

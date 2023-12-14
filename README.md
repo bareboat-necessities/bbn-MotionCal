@@ -1,7 +1,4 @@
-# Updated MotionCal
+# SensorCal
+A desktop app for calibrating motion sensors (eg Accerometer/Gyro/Magnetometer) attached to microcontrollers (eg Arduino/Feather/Teensy).
 
-## TODO
-
-- Add Accelerometer and Gyroscope calibration.
-- Refactor calibration code to it's own library.
-- Use C++ for namespaces and access limiting.
+Based on Paul Stoffregen's [MotionCal](https://github.com/PaulStoffregen/MotionCal) which is recommended for use by AdaFruit [here](https://learn.adafruit.com/how-to-fuse-motion-sensor-data-into-ahrs-orientation-euler-quaternions/magnetic-calibration-with-motioncal) and [here](https://learn.adafruit.com/adafruit-sensorlab-magnetometer-calibration/magnetic-calibration-with-motioncal).
