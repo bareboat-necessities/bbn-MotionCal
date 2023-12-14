@@ -25,6 +25,7 @@ if(APPLE)
 		)
 	
 	target_compile_definitions(SensorCal PUBLIC "MACOSX")
+	target_compile_definitions(SensorCal PUBLIC "GL_SILENCE_DEPRECATION")
 elseif(WIN32)
 	message("[SensorCal] building for windows")
     target_sources(SensorCal PRIVATE main.exe.manifest)
