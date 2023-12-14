@@ -4,7 +4,7 @@
 #include <string.h>
 #include <math.h>
 
-#if defined(WINDOWS)
+#ifdef _WIN32
 #define random() rand()
 #endif
 

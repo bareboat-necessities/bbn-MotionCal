@@ -1,6 +1,8 @@
 #include "gui.h"
 #include "imuread.h"
 
+#include "image2wx/image2wx.h"
+
 
 
 wxString port_name;
@@ -71,7 +73,10 @@ BEGIN_EVENT_TABLE(MyFrame,wxFrame)
 	EVT_COMBOBOX_DROPDOWN(ID_PORTLIST, MyFrame::OnShowPortList)
 END_EVENT_TABLE()
 
-
+wxBitmap MyBitmap(const char *name)
+{
+	return image2wx::BitmapFromName(name);
+}
 
 MyFrame::MyFrame(wxWindow *parent, wxWindowID id, const wxString &title,
     const wxPoint &position, const wxSize& size, long style) :
@@ -424,7 +429,7 @@ void MyFrame::OnPortList(wxCommandEvent& event)
 void MyFrame::OnAbout(wxCommandEvent &event)
 {
         wxMessageDialog dialog(this,
-				"SensorCal - Motion Sensor Calibration Tool\n"
+                "SensorCal - Motion Sensor Calibration Tool\n"
 				"\n"
 				"Bruce Oberg <bruce@oberg.org>\n"
 				"https://github.com/bruceoberg/SensorCal\n"
@@ -434,7 +439,7 @@ void MyFrame::OnAbout(wxCommandEvent &event)
 				"http://www.pjrc.com/store/prop_shield.html\n"
 				"https://github.com/PaulStoffregen/MotionCal\n"
 				"MotionCal Copyright 2018, PJRC.COM, LLC.",
-				"About SensorCal", wxOK|wxICON_INFORMATION|wxCENTER);
+                "About SensorCal", wxOK|wxICON_INFORMATION|wxCENTER);
         dialog.ShowModal();
 }
 
@@ -477,6 +482,7 @@ bool MyApp::OnInit()
 
 int MyApp::OnExit()
 {
+	image2wx::FreeBitmaps();
 	return 0;
 }
 

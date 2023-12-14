@@ -3,7 +3,7 @@
 #include "imuread.h"
 #include <GL/glut.h> // sudo apt-get install xorg-dev libglu1-mesa-dev freeglut3-dev
 
-#include "libcalib/libcalib.h"
+#include "libcalib.h"
 
 void die(const char *format, ...) __attribute__ ((format (printf, 1, 2)));
 
