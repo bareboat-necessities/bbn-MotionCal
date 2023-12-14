@@ -1,0 +1,18 @@
+#include "image2wx-node.h"
+
+namespace image2wx
+{
+	namespace image
+	{
+		namespace ${symbol}
+		{
+			const unsigned char bytes[] =
+			{
+${hex_bytes_list}
+			};
+			const unsigned long size = sizeof(bytes);
+
+			node_t node("${base_filename}", bytes, size);
+		} // namespace ${symbol}
+	} // namespace image
+} // namespace image2wx

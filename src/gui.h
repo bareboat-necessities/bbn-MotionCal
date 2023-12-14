@@ -109,9 +109,6 @@ private:
 // portlist.cpp
 wxArrayString serial_port_list();
 
-// images.cpp
-wxBitmap MyBitmap(const char *name);
-
 // sample port name, for initial sizing of left panel
 #if defined(LINUX)
 #define SAMPLE_PORT_NAME "/dev/ttyACM5."

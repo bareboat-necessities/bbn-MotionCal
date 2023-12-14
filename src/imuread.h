@@ -29,7 +29,7 @@
 #endif
 
 
-#include "libcalib/libcalib.h"
+#include "libcalib.h"
 
 
 #if defined(LINUX)
