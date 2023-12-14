@@ -69,6 +69,6 @@ In its C++ code, image2wx uses a small amount of trickery to maintain a global l
 
 ## Motivation
 
-I create image2wx as part of an effort to move [MotionCal](https://github.com/PaulStoffregen/MotionCal) to use CMake as its build system. It used a perl(!) script to generate the C files from images.
+I create image2wx as part of an effort to move [MotionCal](https://github.com/PaulStoffregen/MotionCal) to use CMake as its build system. It used a perl script to generate the C files from images.
 
 _bruce oberg_  
