@@ -27,8 +27,6 @@
 // This file contains matrix manipulation functions.
 //
 
-#include "libcalib.h"
-
 #include <math.h>
 
 // compile time constants that are private to this file

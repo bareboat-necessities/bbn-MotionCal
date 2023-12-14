@@ -1,5 +1,4 @@
-#ifndef libcalib_h_
-#define libcalib_h_
+#pragma once
 
 #include <stdint.h>
 
@@ -102,17 +101,6 @@ float quality_magnitude_variance_error(void);
 float quality_wobble_error(void);
 float quality_spherical_fit_error(void);
 
-void f3x3matrixAeqI(float A[][3]);
-void fmatrixAeqI(float* A[], int16_t rc);
-void f3x3matrixAeqScalar(float A[][3], float Scalar);
-void f3x3matrixAeqInvSymB(float A[][3], float B[][3]);
-void f3x3matrixAeqAxScalar(float A[][3], float Scalar);
-void f3x3matrixAeqMinusA(float A[][3]);
-float f3x3matrixDetA(float A[][3]);
-void eigencompute(float A[][10], float eigval[], float eigvec[][10], int8_t n);
-void fmatrixAeqInvA(float* A[], int8_t iColInd[], int8_t iRowInd[], int8_t iPivot[], int8_t isize);
-void fmatrixAeqRenormRotA(float A[][3]);
-
 void raw_data_reset(void);
 void raw_data(const int16_t* data);
 void apply_calibration(int16_t rawx, int16_t rawy, int16_t rawz, Point_t* out);
@@ -122,4 +110,3 @@ void apply_calibration(int16_t rawx, int16_t rawy, int16_t rawz, Point_t* out);
 } // extern "C"
 #endif
 
-#endif // libcalib_h_

@@ -33,6 +33,7 @@
 //        Freescale) about the "almost inevitable" issues!
 
 #include "libcalib.h"
+#include "matrix.h"
 
 #include <math.h>
 
