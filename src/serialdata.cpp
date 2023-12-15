@@ -12,171 +12,6 @@ void print_data(const char *name, const unsigned char *data, int len)
 	printf("\n");
 }
 
-static int packet_primary_data(const unsigned char *data)
-{
-	//current_position.x = (float)((int16_t)((data[13] << 8) | data[12])) / 10.0f;
-	//current_position.y = (float)((int16_t)((data[15] << 8) | data[14])) / 10.0f;
-	//current_position.z = (float)((int16_t)((data[17] << 8) | data[16])) / 10.0f;
-	current_orientation.q0 = (float)((int16_t)((data[25] << 8) | data[24])) / 30000.0f;
-	current_orientation.q1 = (float)((int16_t)((data[27] << 8) | data[26])) / 30000.0f;
-	current_orientation.q2 = (float)((int16_t)((data[29] << 8) | data[28])) / 30000.0f;
-	current_orientation.q3 = (float)((int16_t)((data[31] << 8) | data[30])) / 30000.0f;
-#if 0
-	printf("mag data, %5.2f %5.2f %5.2f\n",
-		current_position.x,
-		current_position.y,
-		current_position.z
-	);
-#endif
-#if 0
-	printf("orientation: %5.3f %5.3f %5.3f %5.3f\n",
-		current_orientation.w,
-		current_orientation.x,
-		current_orientation.y,
-		current_orientation.z
-	);
-#endif
-	return 1;
-}
-
-static int packet_magnetic_cal(const unsigned char *data)
-{
-	int16_t id, x, y, z;
-	int n;
-
-	id = (data[7] << 8) | data[6];
-	x = (data[9] << 8) | data[8];
-	y = (data[11] << 8) | data[10];
-	z = (data[13] << 8) | data[12];
-
-	if (id == 1) {
-		magcal.m_cal_V[0] = (float)x * 0.1f;
-		magcal.m_cal_V[1] = (float)y * 0.1f;
-		magcal.m_cal_V[2] = (float)z * 0.1f;
-		return 1;
-	} else if (id == 2) {
-		magcal.m_cal_invW[0][0] = (float)x * 0.001f;
-		magcal.m_cal_invW[1][1] = (float)y * 0.001f;
-		magcal.m_cal_invW[2][2] = (float)z * 0.001f;
-		return 1;
-	} else if (id == 3) {
-		magcal.m_cal_invW[0][1] = (float)x / 1000.0f;
-		magcal.m_cal_invW[1][0] = (float)x / 1000.0f; // TODO: check this assignment
-		magcal.m_cal_invW[0][2] = (float)y / 1000.0f;
-		magcal.m_cal_invW[1][2] = (float)y / 1000.0f; // TODO: check this assignment
-		magcal.m_cal_invW[1][2] = (float)z / 1000.0f;
-		magcal.m_cal_invW[2][1] = (float)z / 1000.0f; // TODO: check this assignment
-		return 1;
-	} else if (id >= 10 && id < MAGBUFFSIZE+10) {
-		n = id - 10;
-		if (magcal.m_aBpIsValid[n] == 0 || x != magcal.m_aBpFast[0][n]
-		  || y != magcal.m_aBpFast[1][n] || z != magcal.m_aBpFast[2][n]) {
-			magcal.m_aBpFast[0][n] = x;
-			magcal.m_aBpFast[1][n] = y;
-			magcal.m_aBpFast[2][n] = z;
-			magcal.m_aBpIsValid[n] = 1;
-			//printf("mag cal, n=%3d: %5d %5d %5d\n", n, x, y, z);
-		}
-		return 1;
-	}
-	return 0;
-}
-
-static int packet(const unsigned char *data, int len)
-{
-	if (len <= 0) return 0;
-	//print_data("packet", data, len);
-
-	if (data[0] == 1 && len == 34) {
-		return packet_primary_data(data);
-	} else if (data[0] == 6 && len == 14) {
-		return packet_magnetic_cal(data);
-	}
-	return 0;
-}
-
-static int packet_encoded(const unsigned char *data, int len)
-{
-	const unsigned char *p;
-	unsigned char buf[256];
-	int buflen=0, copylen;
-
-	//printf("packet_encoded, len = %d\n", len);
-	p = reinterpret_cast<const unsigned char *>(memchr(data, 0x7D, len));
-	if (p == NULL) {
-		return packet(data, len);
-	} else {
-		//printf("** decoding necessary\n");
-		while (1) {
-			copylen = p - data;
-			if (copylen > 0) {
-				//printf("  copylen = %d\n", copylen);
-				if (buflen + copylen > int(sizeof(buf))) return 0;
-				memcpy(buf+buflen, data, copylen);
-				buflen += copylen;
-				data += copylen;
-				len -= copylen;
-			}
-			if (buflen + 1 > int(sizeof(buf))) return 0;
-			buf[buflen++] = (p[1] == 0x5E) ? 0x7E : 0x7D;
-			data += 2;
-			len -= 2;
-			if (len <= 0) break;
-			p = reinterpret_cast<const unsigned char *>(memchr(data, 0x7D, len));
-			if (p == NULL) {
-				if (buflen + len > int(sizeof(buf))) return 0;
-				memcpy(buf+buflen, data, len);
-				buflen += len;
-				break;
-			}
-		}
-		//printf("** decoded to %d\n", buflen);
-		return packet(buf, buflen);
-	}
-}
-
-static int packet_parse(const unsigned char *data, int len)
-{
-	static unsigned char packetbuf[256];
-	static unsigned int packetlen=0;
-	const unsigned char *p;
-	int copylen;
-	int ret=0;
-
-	//print_data("packet_parse", data, len);
-	while (len > 0) {
-		p = reinterpret_cast<const unsigned char *>(memchr(data, 0x7E, len));
-		if (p == NULL) {
-			if (packetlen + len > sizeof(packetbuf)) {
-				packetlen = 0;
-				return 0;  // would overflow buffer
-			}
-			memcpy(packetbuf+packetlen, data, len);
-			packetlen += len;
-			len = 0;
-		} else if (p > data) {
-			copylen = p - data;
-			if (packetlen + copylen > sizeof(packetbuf)) {
-				packetlen = 0;
-				return 0;  // would overflow buffer
-			}
-			memcpy(packetbuf+packetlen, data, copylen);
-			packet_encoded(packetbuf, packetlen+copylen);
-			packetlen = 0;
-			data += copylen + 1;
-			len -= copylen + 1;
-		} else {
-			if (packetlen > 0) {
-				if (packet_encoded(packetbuf, packetlen)) ret = 1;
-				packetlen = 0;
-			}
-			data++;
-			len--;
-		}
-	}
-	return ret;
-}
-
 #define ASCII_STATE_WORD  0
 #define ASCII_STATE_RAW   1
 #define ASCII_STATE_CAL1  2
@@ -350,15 +185,6 @@ fail:
 }
 
 
-static void newdata(const unsigned char *data, int len)
-{
-	packet_parse(data, len);
-	ascii_parse(data, len);
-	// TODO: learn which one and skip the other
-}
-
-
-
 #if defined(LINUX) || defined(MACOSX)
 
 static int portfd=-1;
@@ -401,7 +227,7 @@ int read_serial_data(void)
 	while (1) {
 		n = read(portfd, buf, sizeof(buf));
 		if (n > 0 && n <= int(sizeof(buf))) {
-			newdata(buf, n);
+			ascii_parse(buf, n);
 			nodata_count = 0;
 			return n;
 		} else if (n == 0) {
@@ -595,7 +421,7 @@ int read_serial_data(void)
 		}
 		CloseHandle(ov.hEvent);
 		if (r <= 0) break;
-		newdata(buf, r);
+		ascii_parse(buf, r);
 	}
 	if (r < 0) {
 		CloseHandle(port_handle);
