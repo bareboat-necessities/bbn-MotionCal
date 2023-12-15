@@ -50,31 +50,31 @@ static int packet_magnetic_cal(const unsigned char *data)
 	z = (data[13] << 8) | data[12];
 
 	if (id == 1) {
-		magcal.V[0] = (float)x * 0.1f;
-		magcal.V[1] = (float)y * 0.1f;
-		magcal.V[2] = (float)z * 0.1f;
+		magcal.m_cal_V[0] = (float)x * 0.1f;
+		magcal.m_cal_V[1] = (float)y * 0.1f;
+		magcal.m_cal_V[2] = (float)z * 0.1f;
 		return 1;
 	} else if (id == 2) {
-		magcal.invW[0][0] = (float)x * 0.001f;
-		magcal.invW[1][1] = (float)y * 0.001f;
-		magcal.invW[2][2] = (float)z * 0.001f;
+		magcal.m_cal_invW[0][0] = (float)x * 0.001f;
+		magcal.m_cal_invW[1][1] = (float)y * 0.001f;
+		magcal.m_cal_invW[2][2] = (float)z * 0.001f;
 		return 1;
 	} else if (id == 3) {
-		magcal.invW[0][1] = (float)x / 1000.0f;
-		magcal.invW[1][0] = (float)x / 1000.0f; // TODO: check this assignment
-		magcal.invW[0][2] = (float)y / 1000.0f;
-		magcal.invW[1][2] = (float)y / 1000.0f; // TODO: check this assignment
-		magcal.invW[1][2] = (float)z / 1000.0f;
-		magcal.invW[2][1] = (float)z / 1000.0f; // TODO: check this assignment
+		magcal.m_cal_invW[0][1] = (float)x / 1000.0f;
+		magcal.m_cal_invW[1][0] = (float)x / 1000.0f; // TODO: check this assignment
+		magcal.m_cal_invW[0][2] = (float)y / 1000.0f;
+		magcal.m_cal_invW[1][2] = (float)y / 1000.0f; // TODO: check this assignment
+		magcal.m_cal_invW[1][2] = (float)z / 1000.0f;
+		magcal.m_cal_invW[2][1] = (float)z / 1000.0f; // TODO: check this assignment
 		return 1;
 	} else if (id >= 10 && id < MAGBUFFSIZE+10) {
 		n = id - 10;
-		if (magcal.valid[n] == 0 || x != magcal.BpFast[0][n]
-		  || y != magcal.BpFast[1][n] || z != magcal.BpFast[2][n]) {
-			magcal.BpFast[0][n] = x;
-			magcal.BpFast[1][n] = y;
-			magcal.BpFast[2][n] = z;
-			magcal.valid[n] = 1;
+		if (magcal.m_aBpIsValid[n] == 0 || x != magcal.m_aBpFast[0][n]
+		  || y != magcal.m_aBpFast[1][n] || z != magcal.m_aBpFast[2][n]) {
+			magcal.m_aBpFast[0][n] = x;
+			magcal.m_aBpFast[1][n] = y;
+			magcal.m_aBpFast[2][n] = z;
+			magcal.m_aBpIsValid[n] = 1;
 			//printf("mag cal, n=%3d: %5d %5d %5d\n", n, x, y, z);
 		}
 		return 1;
@@ -764,26 +764,26 @@ int send_calibration(void)
 		cal_data_sent[3 + i] = 0.0f;
 	}
 	for (i = 0; i < 3; i++) {
-		p = copy_lsb_first(p, magcal.V[i]); // 12 bytes offset/hardiron
-		cal_data_sent[6 + i] = magcal.V[i];
+		p = copy_lsb_first(p, magcal.m_cal_V[i]); // 12 bytes offset/hardiron
+		cal_data_sent[6 + i] = magcal.m_cal_V[i];
 	}
-	p = copy_lsb_first(p, magcal.B); // field strength
-	p = copy_lsb_first(p, magcal.invW[0][0]); //10
-	p = copy_lsb_first(p, magcal.invW[1][1]); //11
-	p = copy_lsb_first(p, magcal.invW[2][2]); //12
-	p = copy_lsb_first(p, magcal.invW[0][1]); //13
-	p = copy_lsb_first(p, magcal.invW[0][2]); //14
-	p = copy_lsb_first(p, magcal.invW[1][2]); //15
-	cal_data_sent[9] = magcal.B;
-	cal_data_sent[10] = magcal.invW[0][0];
-	cal_data_sent[11] = magcal.invW[0][1];
-	cal_data_sent[12] = magcal.invW[0][2];
-	cal_data_sent[13] = magcal.invW[1][0];
-	cal_data_sent[14] = magcal.invW[1][1];
-	cal_data_sent[15] = magcal.invW[1][2];
-	cal_data_sent[16] = magcal.invW[2][0];
-	cal_data_sent[17] = magcal.invW[2][1];
-	cal_data_sent[18] = magcal.invW[2][2];
+	p = copy_lsb_first(p, magcal.m_cal_B); // field strength
+	p = copy_lsb_first(p, magcal.m_cal_invW[0][0]); //10
+	p = copy_lsb_first(p, magcal.m_cal_invW[1][1]); //11
+	p = copy_lsb_first(p, magcal.m_cal_invW[2][2]); //12
+	p = copy_lsb_first(p, magcal.m_cal_invW[0][1]); //13
+	p = copy_lsb_first(p, magcal.m_cal_invW[0][2]); //14
+	p = copy_lsb_first(p, magcal.m_cal_invW[1][2]); //15
+	cal_data_sent[9] = magcal.m_cal_B;
+	cal_data_sent[10] = magcal.m_cal_invW[0][0];
+	cal_data_sent[11] = magcal.m_cal_invW[0][1];
+	cal_data_sent[12] = magcal.m_cal_invW[0][2];
+	cal_data_sent[13] = magcal.m_cal_invW[1][0];
+	cal_data_sent[14] = magcal.m_cal_invW[1][1];
+	cal_data_sent[15] = magcal.m_cal_invW[1][2];
+	cal_data_sent[16] = magcal.m_cal_invW[2][0];
+	cal_data_sent[17] = magcal.m_cal_invW[2][1];
+	cal_data_sent[18] = magcal.m_cal_invW[2][2];
 	cal_confirm_needed = 3;
 	crc = 0xFFFF;
 	for (i = 0; i < 66; i++) {

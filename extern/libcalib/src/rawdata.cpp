@@ -18,13 +18,13 @@ void raw_data_reset(void)
 	rawcount = OVERSAMPLE_RATIO;
 	fusion_init();
 	memset(&magcal, 0, sizeof(magcal));
-	magcal.V[2] = 80.0f;  // initial guess
-	magcal.invW[0][0] = 1.0f;
-	magcal.invW[1][1] = 1.0f;
-	magcal.invW[2][2] = 1.0f;
-	magcal.FitError = 100.0f;
-	magcal.FitErrorAge = 100.0f;
-	magcal.B = 50.0f;
+	magcal.m_cal_V[2] = 80.0f;  // initial guess
+	magcal.m_cal_invW[0][0] = 1.0f;
+	magcal.m_cal_invW[1][1] = 1.0f;
+	magcal.m_cal_invW[2][2] = 1.0f;
+	magcal.m_errorFit = 100.0f;
+	magcal.m_errorFitAged = 100.0f;
+	magcal.m_cal_B = 50.0f;
 }
 
 static int choose_discard_magcal(void)
@@ -50,16 +50,16 @@ static int choose_discard_magcal(void)
 			j = MAGBUFFSIZE;
 			errormax = 0.0f;
 			for (i=0; i < MAGBUFFSIZE; i++) {
-				rawx = magcal.BpFast[0][i];
-				rawy = magcal.BpFast[1][i];
-				rawz = magcal.BpFast[2][i];
+				rawx = magcal.m_aBpFast[0][i];
+				rawy = magcal.m_aBpFast[1][i];
+				rawz = magcal.m_aBpFast[2][i];
 				apply_calibration(rawx, rawy, rawz, &point);
 				x = point.x;
 				y = point.y;
 				z = point.z;
 				field = sqrtf(x * x + y * y + z * z);
-				// if magcal.B is bad, things could go horribly wrong
-				error = fabsf(field - magcal.B);
+				// if magcal.m_cal_B is bad, things could go horribly wrong
+				error = fabsf(field - magcal.m_cal_B);
 				if (error > errormax) {
 					errormax = error;
 					j = i;
@@ -80,9 +80,9 @@ static int choose_discard_magcal(void)
 	// discarding info from areas with highly redundant info.
 	for (i=0; i < MAGBUFFSIZE; i++) {
 		for (j=i+1; j < MAGBUFFSIZE; j++) {
-			dx = magcal.BpFast[0][i] - magcal.BpFast[0][j];
-			dy = magcal.BpFast[1][i] - magcal.BpFast[1][j];
-			dz = magcal.BpFast[2][i] - magcal.BpFast[2][j];
+			dx = magcal.m_aBpFast[0][i] - magcal.m_aBpFast[0][j];
+			dy = magcal.m_aBpFast[1][i] - magcal.m_aBpFast[1][j];
+			dz = magcal.m_aBpFast[2][i] - magcal.m_aBpFast[2][j];
 			distsq = (int64_t)dx * (int64_t)dx;
 			distsq += (int64_t)dy * (int64_t)dy;
 			distsq += (int64_t)dz * (int64_t)dz;
@@ -102,7 +102,7 @@ static void add_magcal_data(const int16_t *data)
 
 	// first look for an unused caldata slot
 	for (i=0; i < MAGBUFFSIZE; i++) {
-		if (!magcal.valid[i]) break;
+		if (!magcal.m_aBpIsValid[i]) break;
 	}
 	// If the buffer is full, we must choose which old data to discard.
 	// We must choose wisely!  Throwing away the wrong data could prevent
@@ -121,10 +121,10 @@ static void add_magcal_data(const int16_t *data)
 		}
 	}
 	// add it to the cal buffer
-	magcal.BpFast[0][i] = data[6];
-	magcal.BpFast[1][i] = data[7];
-	magcal.BpFast[2][i] = data[8];
-	magcal.valid[i] = 1;
+	magcal.m_aBpFast[0][i] = data[6];
+	magcal.m_aBpFast[1][i] = data[7];
+	magcal.m_aBpFast[2][i] = data[8];
+	magcal.m_aBpIsValid[i] = 1;
 }
 
 void raw_data(const int16_t *data)
@@ -134,13 +134,13 @@ void raw_data(const int16_t *data)
 	Point_t point;
 
 	add_magcal_data(data);
-	x = magcal.V[0];
-	y = magcal.V[1];
-	z = magcal.V[2];
+	x = magcal.m_cal_V[0];
+	y = magcal.m_cal_V[1];
+	z = magcal.m_cal_V[2];
 	if (MagCal_Run()) {
-		x -= magcal.V[0];
-		y -= magcal.V[1];
-		z -= magcal.V[2];
+		x -= magcal.m_cal_V[0];
+		y -= magcal.m_cal_V[1];
+		z -= magcal.m_cal_V[2];
 		magdiff = sqrtf(x * x + y * y + z * z);
 		//printf("magdiff = %.2f\n", magdiff);
 		if (magdiff > 0.8f) {

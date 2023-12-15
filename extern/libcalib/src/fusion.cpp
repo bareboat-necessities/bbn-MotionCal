@@ -286,7 +286,7 @@ void fRun_9DOF_GBY_KALMAN(SV_9DOF_GBY_KALMAN_t *SV,
 	// *********************************************************************************
 
 	// do a once-only orientation lock after the first valid magnetic calibration
-	if (MagCal->ValidMagCal && !SV->FirstOrientationLock) {
+	if (MagCal->m_isValid && !SV->FirstOrientationLock) {
 		// get the 6DOF orientation matrix and initial inclination angle
 		feCompassNED(SV->RPl, &(SV->DeltaPl), Mag->BcFast, Accel->GpFast);
 
@@ -350,7 +350,7 @@ void fRun_9DOF_GBY_KALMAN(SV_9DOF_GBY_KALMAN_t *SV,
 		SV->gErrSeMi[i] = Accel->GpFast[i] + SV->aSeMi[i] - SV->gSeGyMi[i];
 
 		// compute the a priori gyro estimate of the geomagnetic vector (uT, sensor frame)
-		// using an absolute rotation of the global frame geomagnetic vector (with magnitude B uT)
+		// using an absolute rotation of the global frame geomagnetic vector (with magnitude m_cal_B uT)
 		// NED y component of geomagnetic vector in global frame is zero
 		SV->mSeGyMi[i] = SV->RMi[i][X] * SV->mGl[X] + SV->RMi[i][Z] * SV->mGl[Z];
 
@@ -558,10 +558,10 @@ void fRun_9DOF_GBY_KALMAN(SV_9DOF_GBY_KALMAN_t *SV,
 	// set the magnetic jamming flag if there is a significant magnetic error power after calibration
 	ftmp = SV->dErrSePl[X] * SV->dErrSePl[X] + SV->dErrSePl[Y] * SV->dErrSePl[Y] +
 			SV->dErrSePl[Z] * SV->dErrSePl[Z];
-	iMagJamming = (MagCal->ValidMagCal) && (ftmp > MagCal->FourBsq);
+	iMagJamming = (MagCal->m_isValid) && (ftmp > (4.0F * MagCal->m_cal_B * MagCal->m_cal_B));
 
 	// add the remaining magnetic error terms if there is calibration and no magnetic jamming
-	if (MagCal->ValidMagCal && !iMagJamming) {
+	if (MagCal->m_isValid && !iMagJamming) {
 		for (i = X; i <= Z; i++) {
 			SV->ThErrPl[i] += SV->K12x6[i][3] * SV->mErrSeMi[X] +
 					SV->K12x6[i][4] * SV->mErrSeMi[Y] +
@@ -621,7 +621,7 @@ void fRun_9DOF_GBY_KALMAN(SV_9DOF_GBY_KALMAN_t *SV,
 	SV->aGlPl[Z] = -(SV->aGlPl[Z] - 1.0F);
 
 	// update the reference geomagnetic vector using magnetic disturbance error if valid calibration and no jamming
-	if (MagCal->ValidMagCal && !iMagJamming) {
+	if (MagCal->m_isValid && !iMagJamming) {
 		// de-rotate the NED magnetic disturbance error de+ from the sensor to the global reference frame
 		// using the inverse (transpose) of the a posteriori rotation matrix
 		SV->dErrGlPl[X] = SV->RPl[X][X] * SV->dErrSePl[X] +
@@ -658,10 +658,10 @@ void fRun_9DOF_GBY_KALMAN(SV_9DOF_GBY_KALMAN_t *SV,
 
 			// compute the new geomagnetic vector (always north pointing)
 			SV->DeltaPl = fasin_deg(fsindelta);
-			SV->mGl[X] = MagCal->B * fcosdelta;
-			SV->mGl[Z] = MagCal->B * fsindelta;
+			SV->mGl[X] = MagCal->m_cal_B * fcosdelta;
+			SV->mGl[Z] = MagCal->m_cal_B * fsindelta;
 		} // end hyp == 0.0F
-	} // end ValidMagCal
+	} // end m_isValid
 
 	// *********************************************************************************
 	// compute the a posteriori Euler angles from the orientation matrix

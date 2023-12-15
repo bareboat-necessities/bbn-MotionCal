@@ -292,16 +292,16 @@ void MyFrame::OnTimer(wxTimerEvent &event)
 		snprintf(buf, sizeof(buf), "%.1f%%", quality_spherical_fit_error());
 		m_err_fit->SetLabelText(buf);
 		for (i=0; i < 3; i++) {
-			snprintf(buf, sizeof(buf), "%.2f", magcal.V[i]);
+			snprintf(buf, sizeof(buf), "%.2f", magcal.m_cal_V[i]);
 			m_mag_offset[i]->SetLabelText(buf);
 		}
 		for (i=0; i < 3; i++) {
 			for (j=0; j < 3; j++) {
-				snprintf(buf, sizeof(buf), "%+.3f", magcal.invW[i][j]);
+				snprintf(buf, sizeof(buf), "%+.3f", magcal.m_cal_invW[i][j]);
 				m_mag_mapping[i][j]->SetLabelText(buf);
 			}
 		}
-		snprintf(buf, sizeof(buf), "%.2f", magcal.B);
+		snprintf(buf, sizeof(buf), "%.2f", magcal.m_cal_B);
 		m_mag_field->SetLabelText(buf);
 		for (i=0; i < 3; i++) {
 			snprintf(buf, sizeof(buf), "%.3f", 0.0f); // TODO...
@@ -339,13 +339,13 @@ void MyFrame::OnClear(wxCommandEvent &event)
 void MyFrame::OnSendCal(wxCommandEvent &event)
 {
 	/*printf("OnSendCal\n");
-	printf("Magnetic Calibration:   (%.1f%% fit error)\n", magcal.FitError);
+	printf("Magnetic Calibration:   (%.1f%% fit error)\n", magcal.m_errorFit);
 	printf("   %7.2f   %6.3f %6.3f %6.3f\n",
-		magcal.V[0], magcal.invW[0][0], magcal.invW[0][1], magcal.invW[0][2]);
+		magcal.m_cal_V[0], magcal.m_cal_invW[0][0], magcal.m_cal_invW[0][1], magcal.m_cal_invW[0][2]);
 	printf("   %7.2f   %6.3f %6.3f %6.3f\n",
-		magcal.V[1], magcal.invW[1][0], magcal.invW[1][1], magcal.invW[1][2]);
+		magcal.m_cal_V[1], magcal.m_cal_invW[1][0], magcal.m_cal_invW[1][1], magcal.m_cal_invW[1][2]);
 	printf("   %7.2f   %6.3f %6.3f %6.3f\n",
-		magcal.V[2], magcal.invW[2][0], magcal.invW[2][1], magcal.invW[2][2]);
+		magcal.m_cal_V[2], magcal.m_cal_invW[2][0], magcal.m_cal_invW[2][1], magcal.m_cal_invW[2][2]);
 	*/
 	m_confirm_icon->SetBitmap(MyBitmap("checkempty.png"));
 	send_calibration();

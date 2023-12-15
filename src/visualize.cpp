@@ -84,9 +84,9 @@ void display_callback(void)
 		//rotation[8] *= -1.0f;
 
 		for (i=0; i < MAGBUFFSIZE; i++) {
-			if (magcal.valid[i]) {
-				apply_calibration(magcal.BpFast[0][i], magcal.BpFast[1][i],
-					magcal.BpFast[2][i], &point);
+			if (magcal.m_aBpIsValid[i]) {
+				apply_calibration(magcal.m_aBpFast[0][i], magcal.m_aBpFast[1][i],
+					magcal.m_aBpFast[2][i], &point);
 				//point.x *= -1.0f;
 				//point.y *= -1.0f;
 				//point.z *= -1.0f;

@@ -84,18 +84,18 @@ static void glut_keystroke_callback(unsigned char ch, int x, int y)
 	}
 
 
-	if (magcal.FitError > 9.0) {
+	if (magcal.m_errorFit > 9.0) {
 		printf("Poor Calibration: ");
-		printf("soft iron fit error = %.1f%%\n", magcal.FitError);
+		printf("soft iron fit error = %.1f%%\n", magcal.m_errorFit);
 		return;
 	}
-	printf("Magnetic Calibration:   (%.1f%% fit error)\n", magcal.FitError);
+	printf("Magnetic Calibration:   (%.1f%% fit error)\n", magcal.m_errorFit);
 	printf("   %7.2f   %6.3f %6.3f %6.3f\n",
-		magcal.V[0], magcal.invW[0][0], magcal.invW[0][1], magcal.invW[0][2]);
+		magcal.m_cal_V[0], magcal.m_cal_invW[0][0], magcal.m_cal_invW[0][1], magcal.m_cal_invW[0][2]);
 	printf("   %7.2f   %6.3f %6.3f %6.3f\n",
-		magcal.V[1], magcal.invW[1][0], magcal.invW[1][1], magcal.invW[1][2]);
+		magcal.m_cal_V[1], magcal.m_cal_invW[1][0], magcal.m_cal_invW[1][1], magcal.m_cal_invW[1][2]);
 	printf("   %7.2f   %6.3f %6.3f %6.3f\n",
-		magcal.V[2], magcal.invW[2][0], magcal.invW[2][1], magcal.invW[2][2]);
+		magcal.m_cal_V[2], magcal.m_cal_invW[2][0], magcal.m_cal_invW[2][1], magcal.m_cal_invW[2][2]);
 	send_calibration();
 }
 

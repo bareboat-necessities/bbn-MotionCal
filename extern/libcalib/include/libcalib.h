@@ -32,27 +32,27 @@ extern Quaternion_t current_orientation;
 
 constexpr int MAGBUFFSIZE = 650; // Freescale's lib needs at least 392
 
-struct MagCalibration_t {
-    float V[3];                  // current hard iron offset x, y, z, (uT)
-    float invW[3][3];            // current inverse soft iron matrix
-    float B;                     // current geomagnetic field magnitude (uT)
-    float FourBsq;               // current 4*B*B (uT^2)
-    float FitError;              // current fit error %
-    float FitErrorAge;           // current fit error % (grows automatically with age)
-    float trV[3];                // trial value of hard iron offset z, y, z (uT)
-    float trinvW[3][3];          // trial inverse soft iron matrix size
-    float trB;                   // trial value of geomagnetic field magnitude in uT
-    float trFitErrorpc;          // trial value of fit error %
-    float A[3][3];               // ellipsoid matrix A
-    float invA[3][3];            // inverse of ellipsoid matrix A
-    float matA[10][10];          // scratch 10x10 matrix used by calibration algorithms
-    float matB[10][10];          // scratch 10x10 matrix used by calibration algorithms
-    float vecA[10];              // scratch 10x1 vector used by calibration algorithms
-    float vecB[4];               // scratch 4x1 vector used by calibration algorithms
-    int8_t ValidMagCal;          // integer value 0, 4, 7, 10 denoting both valid calibration and solver used
-    int16_t BpFast[3][MAGBUFFSIZE];   // uncalibrated magnetometer readings
-    int8_t  valid[MAGBUFFSIZE];        // 1=has data, 0=empty slot
-    int16_t MagBufferCount;           // number of magnetometer readings
+struct MagCalibration_t
+{
+    float m_cal_V[3];                  // current hard iron offset x, y, z, (uT)
+    float m_cal_invW[3][3];            // current inverse soft iron matrix
+    float m_cal_B;                     // current geomagnetic field magnitude (uT)
+    float m_errorFit;              // current fit error %
+    float m_errorFitAged;           // current fit error % (grows automatically with age)
+    float m_calNext_V[3];                // trial value of hard iron offset z, y, z (uT)
+    float m_calNext_invW[3][3];          // trial inverse soft iron matrix size
+    float m_calNext_B;                   // trial value of geomagnetic field magnitude in uT
+    float m_errorFitNext;          // trial value of fit error %
+    float m_A[3][3];               // ellipsoid matrix A
+    float m_invA[3][3];            // inverse of ellipsoid matrix A
+    float m_matA[10][10];          // scratch 10x10 matrix used by calibration algorithms
+    float m_matB[10][10];          // scratch 10x10 matrix used by calibration algorithms
+    float m_vecA[10];              // scratch 10x1 vector used by calibration algorithms
+    float m_vecB[4];               // scratch 4x1 vector used by calibration algorithms
+    int8_t m_isValid;          // integer value 0, 4, 7, 10 denoting both valid calibration and solver used
+    int16_t m_aBpFast[3][MAGBUFFSIZE];   // uncalibrated magnetometer readings
+    int8_t  m_aBpIsValid[MAGBUFFSIZE];        // 1=has data, 0=empty slot
+    int16_t m_cBpIsValid;           // number of magnetometer readings
 };
 
 extern MagCalibration_t magcal;

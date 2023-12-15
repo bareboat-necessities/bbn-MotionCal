@@ -145,7 +145,7 @@ void quality_update(const Point_t *point)
 	// NOTE bruceo: uh, what if count is >= MAGBUFFSIZE?
 	//	seems like we could be walking off the end of the array here.
 	// ah, ok. it appears that display_callback() calls quality_reset()
-	//	before feeding all the magcal.BpFast calibrated points to this
+	//	before feeding all the magcal.m_aBpFast calibrated points to this
 	//	routine. so we are guaranteed to never get more than MAGBUFFSIZE
 	//	points.
 	magnitude[count] = sqrtf(x * x + y * y + z * z);
@@ -251,7 +251,7 @@ float quality_wobble_error(void)
 // Freescale's algorithm fit error
 float quality_spherical_fit_error(void)
 {
-	return magcal.FitError;
+	return magcal.m_errorFit;
 }
 
 
