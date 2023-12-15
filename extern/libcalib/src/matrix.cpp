@@ -29,6 +29,8 @@
 
 #include <math.h>
 
+#include "matrix.h"
+
 // compile time constants that are private to this file
 #define CORRUPTMATRIX 0.001F			// column vector modulus limit for rotation matrix
 
