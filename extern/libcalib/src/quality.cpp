@@ -114,6 +114,11 @@ void quality_reset(void)
 			sphereideal[i].z = sinf(-0.37388);
 		}
 		for (i=84; i <= 98; i++) {
+			// NOTE bruceo: "i - 1" looks incorrect to me.
+			//	seems like it should be "i - 84".
+			//	probably ok since we're building a ring of points at a particular latitude.
+			//	we're just starting at a different spot on the ring.
+			//	but our points are probably misaligned with the 1..15 set.
 			longitude = ((float)(i - 1) + 0.5f) * (M_PI * 2.0 / 15.0);
 			sphereideal[i].x = cosf(longitude) * cosf(1.05911) * -1.0f;
 			sphereideal[i].y = sinf(longitude) * cosf(1.05911) * -1.0f;
@@ -137,6 +142,12 @@ void quality_update(const Point_t *point)
 	x = point->x;
 	y = point->y;
 	z = point->z;
+	// NOTE bruceo: uh, what if count is >= MAGBUFFSIZE?
+	//	seems like we could be walking off the end of the array here.
+	// ah, ok. it appears that display_callback() calls quality_reset()
+	//	before feeding all the magcal.BpFast calibrated points to this
+	//	routine. so we are guaranteed to never get more than MAGBUFFSIZE
+	//	points.
 	magnitude[count] = sqrtf(x * x + y * y + z * z);
 	region = sphere_region(x, y, z);
 	spheredist[region]++;
