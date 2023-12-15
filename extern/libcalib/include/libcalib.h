@@ -7,30 +7,32 @@ extern "C"{
 #endif
 
 #ifndef M_PI
-    // Source: http://www.geom.uiuc.edu/~huberty/math5337/groupe/digits.html
-#define M_PI 3.141592653589793238462643383279502884197169399375105820974944592307816406 
+// Source: http://www.geom.uiuc.edu/~huberty/math5337/groupe/digits.html
+constexpr float M_PI = 3.141592653589793238462643383279502884197169399375105820974944592307816406;
 #endif
 
-typedef struct {
+struct Point_t
+{
 	float x;
 	float y;
 	float z;
 	//int valid;
-} Point_t;
+};
 
-typedef struct {
+struct Quaternion_t
+{
 	float q0; // w
 	float q1; // x
 	float q2; // y
 	float q3; // z
-} Quaternion_t;
+};
 extern Quaternion_t current_orientation;
 
 // magnetic calibration & buffer structure
 
-#define MAGBUFFSIZE 650 // Freescale's lib needs at least 392
+constexpr int MAGBUFFSIZE = 650; // Freescale's lib needs at least 392
 
-typedef struct {
+struct MagCalibration_t {
     float V[3];                  // current hard iron offset x, y, z, (uT)
     float invW[3][3];            // current inverse soft iron matrix
     float B;                     // current geomagnetic field magnitude (uT)
@@ -51,38 +53,38 @@ typedef struct {
     int16_t BpFast[3][MAGBUFFSIZE];   // uncalibrated magnetometer readings
     int8_t  valid[MAGBUFFSIZE];        // 1=has data, 0=empty slot
     int16_t MagBufferCount;           // number of magnetometer readings
-} MagCalibration_t;
+};
 
 extern MagCalibration_t magcal;
 
 
-#define SENSORFS 100
-#define OVERSAMPLE_RATIO 4
+constexpr int SENSORFS = 100;
+constexpr int OVERSAMPLE_RATIO = 4;
 
 
 // accelerometer sensor structure definition
-#define G_PER_COUNT 0.0001220703125F  // = 1/8192
-typedef struct
+constexpr float G_PER_COUNT = 0.0001220703125F;  // = 1/8192
+struct AccelSensor_t
 {
 	float Gp[3];           // slow (typically 25Hz) averaged readings (g)
 	float GpFast[3];       // fast (typically 200Hz) readings (g)
-} AccelSensor_t;
+};
 
 // magnetometer sensor structure definition
-#define UT_PER_COUNT 0.1F
-typedef struct
+constexpr float UT_PER_COUNT = 0.1F;
+struct MagSensor_t
 {
 	float Bc[3];           // slow (typically 25Hz) averaged calibrated readings (uT)
 	float BcFast[3];       // fast (typically 200Hz) calibrated readings (uT)
-} MagSensor_t;
+};
 
 // gyro sensor structure definition
-#define DEG_PER_SEC_PER_COUNT 0.0625F  // = 1/16
-typedef struct
+constexpr float DEG_PER_SEC_PER_COUNT = 0.0625F;  // = 1/16
+struct GyroSensor_t
 {
 	float Yp[3];                           // raw gyro sensor output (deg/s)
 	float YpFast[OVERSAMPLE_RATIO][3];     // fast (typically 200Hz) readings
-} GyroSensor_t;
+};
 
 
 #define USE_NXP_FUSION

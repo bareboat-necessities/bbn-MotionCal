@@ -87,7 +87,7 @@ static float fatan2_deg(float y, float x);
 static float fatan_15deg(float x);
 
 // 9DOF Kalman filter accelerometer, magnetometer and gyroscope state vector structure
-typedef struct
+struct SV_9DOF_GBY_KALMAN_t
 {
 	// start: elements common to all motion state vectors
 	// Euler angles
@@ -141,7 +141,7 @@ typedef struct
 	float QwbplusQvG;		// FQWB + FQVG
 	int16_t FirstOrientationLock;	// denotes that 9DOF orientation has locked to 6DOF
 	int8_t resetflag;		// flag to request re-initialization on next pass
-} SV_9DOF_GBY_KALMAN_t;
+};
 
 
 SV_9DOF_GBY_KALMAN_t fusionstate;
