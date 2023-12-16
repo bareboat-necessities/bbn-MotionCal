@@ -5,11 +5,11 @@ add_library(libcalib STATIC)
 
 target_sources(libcalib
     PRIVATE
-        src/fusion.cpp
         src/libcalib.cpp
 		src/magcal.cpp
 		src/mahony.cpp
 		src/matrix.cpp
+        src/nxp.cpp
 		src/quality.cpp
 		src/rawdata.cpp
 )
