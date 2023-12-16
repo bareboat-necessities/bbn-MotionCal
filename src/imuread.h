@@ -31,6 +31,8 @@
 
 #include "libcalib.h"
 
+extern MagCalibration_t magcal;
+extern Quaternion_t current_orientation;
 
 #if defined(LINUX)
   #define PORT "/dev/ttyACM0"
@@ -41,10 +43,6 @@
 #endif
 
 #define TIMEOUT_MSEC 14
-
-#ifdef __cplusplus
-extern "C"{
-#endif
 
 extern int port_is_open(void);
 extern int open_port(const char *name);
@@ -58,9 +56,4 @@ int send_calibration(void);
 void visualize_init(void);
 void display_callback(void);
 void resize_callback(int width, int height);
-
-#ifdef __cplusplus
-} // extern "C"
-#endif
-
 #endif

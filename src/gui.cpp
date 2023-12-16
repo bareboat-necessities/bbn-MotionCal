@@ -3,6 +3,8 @@
 
 #include "image2wx/image2wx.h"
 
+MagCalibration_t magcal;
+Quaternion_t current_orientation;
 
 
 wxString port_name;
@@ -243,7 +245,7 @@ MyFrame::MyFrame(wxWindow *parent, wxWindowID id, const wxString &title,
 	Raise();
 
 	m_canvas->InitGL();
-	raw_data_reset();
+	magcal.reset();
 	//open_port(PORT);
 	m_timer = new wxTimer(this, ID_TIMER);
 	m_timer->Start(14, wxTIMER_CONTINUOUS);
@@ -269,7 +271,7 @@ void MyFrame::OnTimer(wxTimerEvent &event)
 		gaps = quality_surface_gap_error();
 		variance = quality_magnitude_variance_error();
 		wobble = quality_wobble_error();
-		fiterror = quality_spherical_fit_error();
+		fiterror = magcal.m_errorFit;
 		if (gaps < 15.0f && variance < 4.5f && wobble < 4.0f && fiterror < 5.0f) {
 			if (!m_sendcal_menu->IsEnabled(ID_SENDCAL_MENU) || !m_button_sendcal->IsEnabled()) {
 				m_sendcal_menu->Enable(ID_SENDCAL_MENU, true);
@@ -289,7 +291,7 @@ void MyFrame::OnTimer(wxTimerEvent &event)
 		m_err_variance->SetLabelText(buf);
 		snprintf(buf, sizeof(buf), "%.1f%%", quality_wobble_error());
 		m_err_wobble->SetLabelText(buf);
-		snprintf(buf, sizeof(buf), "%.1f%%", quality_spherical_fit_error());
+		snprintf(buf, sizeof(buf), "%.1f%%", magcal.m_errorFit);
 		m_err_fit->SetLabelText(buf);
 		for (i=0; i < 3; i++) {
 			snprintf(buf, sizeof(buf), "%.2f", magcal.m_cal_V[i]);
@@ -333,7 +335,7 @@ void MyFrame::OnTimer(wxTimerEvent &event)
 void MyFrame::OnClear(wxCommandEvent &event)
 {
 	//printf("OnClear\n");
-	raw_data_reset();
+	magcal.reset();
 }
 
 void MyFrame::OnSendCal(wxCommandEvent &event)
@@ -404,7 +406,7 @@ void MyFrame::OnPortMenu(wxCommandEvent &event)
 	m_port_list->Append(port_name);
 	m_port_list->SetSelection(0);
         if (id == 9000) return;
-	raw_data_reset();
+	magcal.reset();
 	open_port((const char *)name);
 	m_button_clear->Enable(true);
 }
@@ -418,7 +420,7 @@ void MyFrame::OnPortList(wxCommandEvent& event)
 	close_port();
 	port_name = name;
 	if (name == "(none)") return;
-	raw_data_reset();
+	magcal.reset();
 	open_port((const char *)name);
 	m_button_clear->Enable(true);
 }

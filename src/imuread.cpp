@@ -5,6 +5,9 @@
 
 #include "libcalib.h"
 
+MagCalibration_t magcal;
+Quaternion_t current_orientation;
+
 void die(const char *format, ...) __attribute__ ((format (printf, 1, 2)));
 
 static void timer_callback(int val)
@@ -106,7 +109,7 @@ void calibration_confirmed(void)
 
 int main(int argc, char *argv[])
 {
-	raw_data_reset();
+	magcal.reset();
 
 	glutInit(&argc, argv);
 	glutInitDisplayMode(GLUT_RGB | GLUT_DOUBLE | GLUT_DEPTH);

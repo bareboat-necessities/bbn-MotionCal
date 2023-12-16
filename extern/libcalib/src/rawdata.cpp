@@ -13,21 +13,21 @@ static AccelSensor_t accel;
 static MagSensor_t   mag;
 static GyroSensor_t  gyro;
 
-void raw_data_reset(void)
+void MagCalibration_t::reset()
 {
 	rawcount = OVERSAMPLE_RATIO;
 	fusion_init();
-	memset(&magcal, 0, sizeof(magcal));
-	magcal.m_cal_V[2] = 80.0f;  // initial guess
-	magcal.m_cal_invW[0][0] = 1.0f;
-	magcal.m_cal_invW[1][1] = 1.0f;
-	magcal.m_cal_invW[2][2] = 1.0f;
-	magcal.m_errorFit = 100.0f;
-	magcal.m_errorFitAged = 100.0f;
-	magcal.m_cal_B = 50.0f;
+	memset(this, 0, sizeof(*this));
+	m_cal_V[2] = 80.0f;  // initial guess
+	m_cal_invW[0][0] = 1.0f;
+	m_cal_invW[1][1] = 1.0f;
+	m_cal_invW[2][2] = 1.0f;
+	m_errorFit = 100.0f;
+	m_errorFitAged = 100.0f;
+	m_cal_B = 50.0f;
 }
 
-static int choose_discard_magcal(void)
+int MagCalibration_t::choose_discard_magcal()
 {
 	int32_t rawx, rawy, rawz;
 	int32_t dx, dy, dz;
@@ -50,16 +50,16 @@ static int choose_discard_magcal(void)
 			j = MAGBUFFSIZE;
 			errormax = 0.0f;
 			for (i=0; i < MAGBUFFSIZE; i++) {
-				rawx = magcal.m_aBpFast[0][i];
-				rawy = magcal.m_aBpFast[1][i];
-				rawz = magcal.m_aBpFast[2][i];
+				rawx = m_aBpFast[0][i];
+				rawy = m_aBpFast[1][i];
+				rawz = m_aBpFast[2][i];
 				apply_calibration(rawx, rawy, rawz, &point);
 				x = point.x;
 				y = point.y;
 				z = point.z;
 				field = sqrtf(x * x + y * y + z * z);
-				// if magcal.m_cal_B is bad, things could go horribly wrong
-				error = fabsf(field - magcal.m_cal_B);
+				// if m_cal_B is bad, things could go horribly wrong
+				error = fabsf(field - m_cal_B);
 				if (error > errormax) {
 					errormax = error;
 					j = i;
@@ -80,9 +80,9 @@ static int choose_discard_magcal(void)
 	// discarding info from areas with highly redundant info.
 	for (i=0; i < MAGBUFFSIZE; i++) {
 		for (j=i+1; j < MAGBUFFSIZE; j++) {
-			dx = magcal.m_aBpFast[0][i] - magcal.m_aBpFast[0][j];
-			dy = magcal.m_aBpFast[1][i] - magcal.m_aBpFast[1][j];
-			dz = magcal.m_aBpFast[2][i] - magcal.m_aBpFast[2][j];
+			dx = m_aBpFast[0][i] - m_aBpFast[0][j];
+			dy = m_aBpFast[1][i] - m_aBpFast[1][j];
+			dz = m_aBpFast[2][i] - m_aBpFast[2][j];
 			distsq = (int64_t)dx * (int64_t)dx;
 			distsq += (int64_t)dy * (int64_t)dy;
 			distsq += (int64_t)dz * (int64_t)dz;
@@ -96,13 +96,13 @@ static int choose_discard_magcal(void)
 }
 
 
-static void add_magcal_data(const int16_t *data)
+void MagCalibration_t::add_magcal_data(const int16_t *data)
 {
 	int i;
 
 	// first look for an unused caldata slot
 	for (i=0; i < MAGBUFFSIZE; i++) {
-		if (!magcal.m_aBpIsValid[i]) break;
+		if (!m_aBpIsValid[i]) break;
 	}
 	// If the buffer is full, we must choose which old data to discard.
 	// We must choose wisely!  Throwing away the wrong data could prevent
@@ -121,26 +121,26 @@ static void add_magcal_data(const int16_t *data)
 		}
 	}
 	// add it to the cal buffer
-	magcal.m_aBpFast[0][i] = data[6];
-	magcal.m_aBpFast[1][i] = data[7];
-	magcal.m_aBpFast[2][i] = data[8];
-	magcal.m_aBpIsValid[i] = 1;
+	m_aBpFast[0][i] = data[6];
+	m_aBpFast[1][i] = data[7];
+	m_aBpFast[2][i] = data[8];
+	m_aBpIsValid[i] = 1;
 }
 
-void raw_data(const int16_t *data)
+void MagCalibration_t::raw_data(const int16_t *data, Quaternion_t * pResult)
 {
 	static int force_orientation_counter=0;
 	float x, y, z, ratio, magdiff;
 	Point_t point;
 
 	add_magcal_data(data);
-	x = magcal.m_cal_V[0];
-	y = magcal.m_cal_V[1];
-	z = magcal.m_cal_V[2];
-	if (MagCal_Run()) {
-		x -= magcal.m_cal_V[0];
-		y -= magcal.m_cal_V[1];
-		z -= magcal.m_cal_V[2];
+	x = m_cal_V[0];
+	y = m_cal_V[1];
+	z = m_cal_V[2];
+	if (TryNewCalibration()) {
+		x -= m_cal_V[0];
+		y -= m_cal_V[1];
+		z -= m_cal_V[2];
 		magdiff = sqrtf(x * x + y * y + z * z);
 		//printf("magdiff = %.2f\n", magdiff);
 		if (magdiff > 0.8f) {
@@ -204,8 +204,8 @@ void raw_data(const int16_t *data)
 		mag.Bc[0] *= ratio;
 		mag.Bc[1] *= ratio;
 		mag.Bc[2] *= ratio;
-		fusion_update(&accel, &mag, &gyro, &magcal);
-		fusion_read(&current_orientation);
+		fusion_update(&accel, &mag, &gyro, this);
+		fusion_read(pResult);
 	}
 }
 

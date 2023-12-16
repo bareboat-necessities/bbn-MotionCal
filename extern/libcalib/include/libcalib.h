@@ -2,10 +2,6 @@
 
 #include <stdint.h>
 
-#ifdef __cplusplus
-extern "C"{
-#endif
-
 #ifndef M_PI
 // Source: http://www.geom.uiuc.edu/~huberty/math5337/groupe/digits.html
 constexpr float M_PI = 3.141592653589793238462643383279502884197169399375105820974944592307816406;
@@ -26,18 +22,37 @@ struct Quaternion_t
 	float q2; // y
 	float q3; // z
 };
-extern Quaternion_t current_orientation;
 
 // magnetic calibration & buffer structure
 
 constexpr int MAGBUFFSIZE = 650; // Freescale's lib needs at least 392
 
-struct MagCalibration_t
+class MagCalibration_t
 {
+public:
+
+	void reset();
+	void raw_data(const int16_t* data, Quaternion_t* pResult);
+	void apply_calibration(int16_t rawx, int16_t rawy, int16_t rawz, Point_t* out);
+	bool TryNewCalibration();
+
     float m_cal_V[3];                  // current hard iron offset x, y, z, (uT)
     float m_cal_invW[3][3];            // current inverse soft iron matrix
     float m_cal_B;                     // current geomagnetic field magnitude (uT)
     float m_errorFit;              // current fit error %
+    int8_t m_isValid;          // integer value 0, 4, 7, 10 denoting both valid calibration and solver used
+    int16_t m_aBpFast[3][MAGBUFFSIZE];   // uncalibrated magnetometer readings
+    int8_t  m_aBpIsValid[MAGBUFFSIZE];        // 1=has data, 0=empty slot
+    int16_t m_cBpIsValid;           // number of magnetometer readings
+private:
+
+	int choose_discard_magcal();
+	void add_magcal_data(const int16_t* data);
+
+	void UpdateCalibration4INV();
+	void UpdateCalibration7EIG();
+	void UpdateCalibration10EIG();
+
     float m_errorFitAged;           // current fit error % (grows automatically with age)
     float m_calNext_V[3];                // trial value of hard iron offset z, y, z (uT)
     float m_calNext_invW[3][3];          // trial inverse soft iron matrix size
@@ -49,13 +64,7 @@ struct MagCalibration_t
     float m_matB[10][10];          // scratch 10x10 matrix used by calibration algorithms
     float m_vecA[10];              // scratch 10x1 vector used by calibration algorithms
     float m_vecB[4];               // scratch 4x1 vector used by calibration algorithms
-    int8_t m_isValid;          // integer value 0, 4, 7, 10 denoting both valid calibration and solver used
-    int16_t m_aBpFast[3][MAGBUFFSIZE];   // uncalibrated magnetometer readings
-    int8_t  m_aBpIsValid[MAGBUFFSIZE];        // 1=has data, 0=empty slot
-    int16_t m_cBpIsValid;           // number of magnetometer readings
 };
-
-extern MagCalibration_t magcal;
 
 
 constexpr int SENSORFS = 100;
@@ -95,20 +104,12 @@ void fusion_update(const AccelSensor_t* Accel, const MagSensor_t* Mag, const Gyr
     const MagCalibration_t* MagCal);
 void fusion_read(Quaternion_t* q);
 
-int MagCal_Run(void);
 void quality_reset(void);
 void quality_update(const Point_t* point);
 float quality_surface_gap_error(void);
 float quality_magnitude_variance_error(void);
 float quality_wobble_error(void);
-float quality_spherical_fit_error(void);
 
-void raw_data_reset(void);
 void raw_data(const int16_t* data);
-void apply_calibration(int16_t rawx, int16_t rawy, int16_t rawz, Point_t* out);
 
-
-#ifdef __cplusplus
-} // extern "C"
-#endif
 

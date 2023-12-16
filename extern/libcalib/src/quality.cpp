@@ -248,10 +248,4 @@ float quality_wobble_error(void)
 	return quality_wobble_buffer;
 }
 
-// Freescale's algorithm fit error
-float quality_spherical_fit_error(void)
-{
-	return magcal.m_errorFit;
-}
-
 

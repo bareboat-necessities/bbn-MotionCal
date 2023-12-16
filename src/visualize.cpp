@@ -85,7 +85,7 @@ void display_callback(void)
 
 		for (i=0; i < MAGBUFFSIZE; i++) {
 			if (magcal.m_aBpIsValid[i]) {
-				apply_calibration(magcal.m_aBpFast[0][i], magcal.m_aBpFast[1][i],
+				magcal.apply_calibration(magcal.m_aBpFast[0][i], magcal.m_aBpFast[1][i],
 					magcal.m_aBpFast[2][i], &point);
 				//point.x *= -1.0f;
 				//point.y *= -1.0f;
@@ -115,7 +115,7 @@ void display_callback(void)
 		quality_surface_gap_error(),
 		quality_magnitude_variance_error(),
 		quality_wobble_error(),
-		quality_spherical_fit_error());
+		magcal.m_errorFit);
 #endif
 }
 
