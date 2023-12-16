@@ -96,7 +96,7 @@ int MagCalibration_t::choose_discard_magcal()
 }
 
 
-void MagCalibration_t::add_magcal_data(const int16_t *data)
+void MagCalibration_t::add_magcal_data(const int16_t(&data)[9])
 {
 	int i;
 
@@ -127,7 +127,7 @@ void MagCalibration_t::add_magcal_data(const int16_t *data)
 	m_aBpIsValid[i] = 1;
 }
 
-void MagCalibration_t::raw_data(const int16_t *data, Quaternion_t * pResult)
+void MagCalibration_t::add_raw_data(const int16_t(&data)[9], Quaternion_t * pResult)
 {
 	static int force_orientation_counter=0;
 	float x, y, z, ratio, magdiff;
@@ -137,7 +137,7 @@ void MagCalibration_t::raw_data(const int16_t *data, Quaternion_t * pResult)
 	x = m_cal_V[0];
 	y = m_cal_V[1];
 	z = m_cal_V[2];
-	if (TryNewCalibration()) {
+	if (get_new_calibration()) {
 		x -= m_cal_V[0];
 		y -= m_cal_V[1];
 		z -= m_cal_V[2];

@@ -152,7 +152,7 @@ void fRun_9DOF_GBY_KALMAN(SV_9DOF_GBY_KALMAN_t *SV,
 	const MagCalibration_t *MagCal);
 
 
-void fusion_init(void)
+void fusion_init()
 {
 	fInit_9DOF_GBY_KALMAN(&fusionstate);
 }

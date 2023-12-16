@@ -32,9 +32,9 @@ class MagCalibration_t
 public:
 
 	void reset();
-	void raw_data(const int16_t* data, Quaternion_t* pResult);
+	void add_raw_data(const int16_t (& data)[9], Quaternion_t* pResult);
 	void apply_calibration(int16_t rawx, int16_t rawy, int16_t rawz, Point_t* out);
-	bool TryNewCalibration();
+	bool get_new_calibration();
 
     float m_cal_V[3];                  // current hard iron offset x, y, z, (uT)
     float m_cal_invW[3][3];            // current inverse soft iron matrix
@@ -47,7 +47,7 @@ public:
 private:
 
 	int choose_discard_magcal();
-	void add_magcal_data(const int16_t* data);
+	void add_magcal_data(const int16_t(&data)[9]);
 
 	void UpdateCalibration4INV();
 	void UpdateCalibration7EIG();

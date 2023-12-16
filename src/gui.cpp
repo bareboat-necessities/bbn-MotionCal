@@ -353,7 +353,7 @@ void MyFrame::OnSendCal(wxCommandEvent &event)
 	send_calibration();
 }
 
-void calibration_confirmed(void)
+void calibration_confirmed()
 {
 	show_calibration_confirmed = true;
 }
@@ -450,7 +450,7 @@ void MyFrame::OnQuit( wxCommandEvent &event )
         Close(true);
 }
 
-MyFrame::~MyFrame(void)
+MyFrame::~MyFrame()
 {
 	m_timer->Stop();
 	delete m_timer;

@@ -52,7 +52,7 @@ void mahony_updateIMU(float gx, float gy, float gz, float ax, float ay, float az
 static int reset_next_update=0;
 
 
-void fusion_init(void)
+void fusion_init()
 {
 	mahony_init();
 }

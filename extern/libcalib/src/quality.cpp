@@ -75,7 +75,7 @@ static int quality_gaps_computed=0;
 static int quality_variance_computed=0;
 static int quality_wobble_computed=0;
 
-void quality_reset(void)
+void quality_reset()
 {
 	float longitude;
 	int i;
@@ -161,7 +161,7 @@ void quality_update(const Point_t *point)
 }
 
 // How many surface gaps
-float quality_surface_gap_error(void)
+float quality_surface_gap_error()
 {
 	float error=0.0f;
 	int i, num;
@@ -183,7 +183,7 @@ float quality_surface_gap_error(void)
 }
 
 // Variance in magnitude
-float quality_magnitude_variance_error(void)
+float quality_magnitude_variance_error()
 {
 	float sum, mean, diff, variance;
 	int i;
@@ -206,7 +206,7 @@ float quality_magnitude_variance_error(void)
 }
 
 // Offset of piecewise average data from ideal sphere surface
-float quality_wobble_error(void)
+float quality_wobble_error()
 {
 	float sum, radius, x, y, z, xi, yi, zi;
 	float xoff=0.0f, yoff=0.0f, zoff=0.0f;

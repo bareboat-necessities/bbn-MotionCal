@@ -112,7 +112,7 @@ static int ascii_parse(const unsigned char *data, int len)
 				if (((int16_t)ascii_num) != ascii_num) goto fail;
 				if (ascii_raw_data_count != 8) goto fail;
 				ascii_raw_data[ascii_raw_data_count] = ascii_num;
-				magcal.raw_data(ascii_raw_data, &current_orientation);
+				magcal.add_raw_data(ascii_raw_data, &current_orientation);
 				ret = 1;
 				ascii_raw_data_count = 0;
 				ascii_num = 0;
@@ -189,7 +189,7 @@ fail:
 
 static int portfd=-1;
 
-int port_is_open(void)
+int port_is_open()
 {
 	if (portfd > 0) return 1;
 	return 0;
@@ -217,7 +217,7 @@ int open_port(const char *name)
 	return 1;
 }
 
-int read_serial_data(void)
+int read_serial_data()
 {
 	unsigned char buf[256];
 	static int nodata_count=0;
@@ -279,7 +279,7 @@ int write_serial_data(const void *ptr, int len)
 	return written;
 }
 
-void close_port(void)
+void close_port()
 {
 	if (portfd >= 0) {
 		close(portfd);
@@ -291,7 +291,7 @@ void close_port(void)
 
 static HANDLE port_handle=INVALID_HANDLE_VALUE;
 
-int port_is_open(void)
+int port_is_open()
 {
 	if (port_handle == INVALID_HANDLE_VALUE) return 0;
 	return 1;
@@ -365,7 +365,7 @@ int open_port(const char *name)
 	return 1;
 }
 
-int read_serial_data(void)
+int read_serial_data()
 {
 	COMSTAT st;
 	DWORD errmask=0, num_read, num_request;
@@ -461,7 +461,7 @@ int write_serial_data(const void *ptr, int len)
 	return r;
 }
 
-void close_port(void)
+void close_port()
 {
 	CloseHandle(port_handle);
 	port_handle = INVALID_HANDLE_VALUE;
@@ -572,7 +572,7 @@ static uint8_t* copy_lsb_first(uint8_t* dst, float f)
 	return dst;
 }
 
-int send_calibration(void)
+int send_calibration()
 {
 	uint8_t* p, buf[68];
 	uint16_t crc;

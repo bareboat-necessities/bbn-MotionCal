@@ -37,7 +37,7 @@ int invert_x=0;
 int invert_y=0;
 int invert_z=0;
 
-void display_callback(void)
+void display_callback()
 {
 	int i;
 	float xscale, yscale, zscale;
@@ -143,7 +143,7 @@ static const GLfloat mat_diffuse[]    = { 0.8f, 0.8f, 0.8f, 1.0f };
 static const GLfloat mat_specular[]   = { 1.0f, 1.0f, 1.0f, 1.0f };
 static const GLfloat high_shininess[] = { 100.0f };
 
-void visualize_init(void)
+void visualize_init()
 {
 	GLUquadric *sphere;
 

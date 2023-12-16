@@ -54,7 +54,7 @@
 
 
 // run the magnetic calibration
-bool MagCalibration_t::TryNewCalibration(void)
+bool MagCalibration_t::get_new_calibration()
 {
 	int i, j;			// loop counters
 	int isolver;		// magnetic solver used
