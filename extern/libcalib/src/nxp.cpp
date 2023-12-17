@@ -30,13 +30,14 @@
 // it up.
 //
 
-#include "libcalib.h"
+#include "libcalib_nxp.h"
 #include "matrix.h"
 
 #include <string.h>
 #include <math.h>
 
-#ifdef USE_NXP_FUSION
+namespace libcalib
+{
 
 // kalman filter noise variances
 #define FQVA_9DOF_GBY_KALMAN 2E-6F              // accelerometer noise g^2 so 1.4mg RMS
@@ -86,130 +87,48 @@ static float fatan_deg(float x);
 static float fatan2_deg(float y, float x);
 static float fatan_15deg(float x);
 
-// 9DOF Kalman filter accelerometer, magnetometer and gyroscope state vector structure
-struct SV_9DOF_GBY_KALMAN_t
-{
-	// start: elements common to all motion state vectors
-	// Euler angles
-	float PhiPl;			// roll (deg)
-	float ThePl;			// pitch (deg)
-	float PsiPl;			// yaw (deg)
-	float RhoPl;			// compass (deg)
-	float ChiPl;			// tilt from vertical (deg)
-	// orientation matrix, quaternion and rotation vector
-	float RPl[3][3];		// a posteriori orientation matrix
-	Quaternion_t qPl;		// a posteriori orientation quaternion
-	float RVecPl[3];		// rotation vector
-	// angular velocity
-	float Omega[3];			// angular velocity (deg/s)
-	// systick timer for benchmarking
-	int32_t systick;		// systick timer;
-	// end: elements common to all motion state vectors
-
-	// elements transmitted over bluetooth in kalman packet
-	float bPl[3];			// gyro offset (deg/s)
-	float ThErrPl[3];		// orientation error (deg)
-	float bErrPl[3];		// gyro offset error (deg/s)
-	// end elements transmitted in kalman packet
-
-	float dErrGlPl[3];		// magnetic disturbance error (uT, global frame)
-	float dErrSePl[3];		// magnetic disturbance error (uT, sensor frame)
-	float aErrSePl[3];		// linear acceleration error (g, sensor frame)
-	float aSeMi[3];			// linear acceleration (g, sensor frame)
-	float DeltaPl;			// inclination angle (deg)
-	float aSePl[3];			// linear acceleration (g, sensor frame)
-	float aGlPl[3];			// linear acceleration (g, global frame)
-	float gErrSeMi[3];		// difference (g, sensor frame) of gravity vector (accel) and gravity vector (gyro)
-	float mErrSeMi[3];		// difference (uT, sensor frame) of geomagnetic vector (magnetometer) and geomagnetic vector (gyro)
-	float gSeGyMi[3];		// gravity vector (g, sensor frame) measurement from gyro
-	float mSeGyMi[3];		// geomagnetic vector (uT, sensor frame) measurement from gyro
-	float mGl[3];			// geomagnetic vector (uT, global frame)
-	float QvAA;			// accelerometer terms of Qv
-	float QvMM;			// magnetometer terms of Qv
-	float PPlus12x12[12][12];	// covariance matrix P+
-	float K12x6[12][6];		// kalman filter gain matrix K
-	float Qw12x12[12][12];		// covariance matrix Qw
-	float C6x12[6][12];		// measurement matrix C
-	float RMi[3][3];		// a priori orientation matrix
-	Quaternion_t Deltaq;		// delta quaternion
-	Quaternion_t qMi;		// a priori orientation quaternion
-	float casq;			// FCA * FCA;
-	float cdsq;			// FCD * FCD;
-	float Fastdeltat;		// sensor sampling interval (s) = 1 / SENSORFS
-	float deltat;			// kalman filter sampling interval (s) = OVERSAMPLE_RATIO / SENSORFS
-	float deltatsq;			// fdeltat * fdeltat
-	float QwbplusQvG;		// FQWB + FQVG
-	int16_t FirstOrientationLock;	// denotes that 9DOF orientation has locked to 6DOF
-	int8_t resetflag;		// flag to request re-initialization on next pass
-};
-
-
-SV_9DOF_GBY_KALMAN_t fusionstate;
-
-void fInit_9DOF_GBY_KALMAN(SV_9DOF_GBY_KALMAN_t *SV);
-void fRun_9DOF_GBY_KALMAN(SV_9DOF_GBY_KALMAN_t *SV,
-	const AccelSensor_t *Accel, const MagSensor_t *Mag, const GyroSensor_t *Gyro,
-	const MagCalibration_t *MagCal);
-
-
-void fusion_init()
-{
-	fInit_9DOF_GBY_KALMAN(&fusionstate);
-}
-
-void fusion_update(const AccelSensor_t *Accel, const MagSensor_t *Mag, const GyroSensor_t *Gyro,
-	const MagCalibration_t *MagCal)
-{
-	fRun_9DOF_GBY_KALMAN(&fusionstate, Accel, Mag, Gyro, MagCal);
-}
-
-void fusion_read(Quaternion_t *q)
-{
-	memcpy(q, &(fusionstate.qPl), sizeof(Quaternion_t));
-}
-
 // function initializes the 9DOF Kalman filter
-void fInit_9DOF_GBY_KALMAN(SV_9DOF_GBY_KALMAN_t *SV)
+void nxp::init()
 {
 	int8_t i, j;				// loop counters
 
 	// reset the flag denoting that a first 9DOF orientation lock has been achieved
-	SV->FirstOrientationLock = 0;
+	m_FirstOrientationLock = 0;
 
 	// compute and store useful product terms to save floating point calculations later
-	SV->Fastdeltat = 1.0F / (float)SENSORFS;
-	SV->deltat = (float)OVERSAMPLE_RATIO * SV->Fastdeltat;
-	SV->deltatsq = SV->deltat * SV->deltat;
-	SV->casq = FCA_9DOF_GBY_KALMAN * FCA_9DOF_GBY_KALMAN;
-	SV->cdsq = FCD_9DOF_GBY_KALMAN * FCD_9DOF_GBY_KALMAN;
-	SV->QwbplusQvG = FQWB_9DOF_GBY_KALMAN + FQVG_9DOF_GBY_KALMAN;
+	m_Fastdeltat = 1.0F / (float)SENSORFS;
+	m_deltat = (float)OVERSAMPLE_RATIO * m_Fastdeltat;
+	m_deltatsq = m_deltat * m_deltat;
+	m_casq = FCA_9DOF_GBY_KALMAN * FCA_9DOF_GBY_KALMAN;
+	m_cdsq = FCD_9DOF_GBY_KALMAN * FCD_9DOF_GBY_KALMAN;
+	m_QwbplusQvG = FQWB_9DOF_GBY_KALMAN + FQVG_9DOF_GBY_KALMAN;
 
 	// initialize the fixed entries in the measurement matrix C
 	for (i = 0; i < 6; i++) {
 		for (j = 0; j < 12; j++) {
-			SV->C6x12[i][j]= 0.0F;
+			m_C6x12[i][j]= 0.0F;
 		}
 	}
-	SV->C6x12[0][6] = SV->C6x12[1][7] = SV->C6x12[2][8] = 1.0F;
-	SV->C6x12[3][9] = SV->C6x12[4][10] = SV->C6x12[5][11] = -1.0F;
+	m_C6x12[0][6] = m_C6x12[1][7] = m_C6x12[2][8] = 1.0F;
+	m_C6x12[3][9] = m_C6x12[4][10] = m_C6x12[5][11] = -1.0F;
 
 	// zero a posteriori orientation, error vector xe+ (thetae+, be+, de+, ae+) and b+ and inertial
-	f3x3matrixAeqI(SV->RPl);
-	fqAeq1(&(SV->qPl));
+	f3x3matrixAeqI(m_RPl);
+	fqAeq1(&(m_qPl));
 	for (i = X; i <= Z; i++) {
-		SV->ThErrPl[i] = SV->bErrPl[i] = SV->aErrSePl[i] = SV->dErrSePl[i] = SV->bPl[i] = 0.0F;
+		m_ThErrPl[i] = m_bErrPl[i] = m_aErrSePl[i] = m_dErrSePl[i] = m_bPl[i] = 0.0F;
 	}
 
 	// initialize the reference geomagnetic vector (uT, global frame)
-	SV->DeltaPl = 0.0F;
+	m_DeltaPl = 0.0F;
 	// initialize NED geomagnetic vector to zero degrees inclination
-	SV->mGl[X] = DEFAULTB;
-	SV->mGl[Y] = 0.0F;
-	SV->mGl[Z] = 0.0F;
+	m_mGl[X] = DEFAULTB;
+	m_mGl[Y] = 0.0F;
+	m_mGl[Z] = 0.0F;
 
 	// initialize noise variances for Qv and Qw matrix updates
-	SV->QvAA = FQVA_9DOF_GBY_KALMAN + FQWA_9DOF_GBY_KALMAN + FDEGTORAD * FDEGTORAD * SV->deltatsq * (FQWB_9DOF_GBY_KALMAN + FQVG_9DOF_GBY_KALMAN);
-	SV->QvMM = FQVM_9DOF_GBY_KALMAN + FQWD_9DOF_GBY_KALMAN + FDEGTORAD * FDEGTORAD * SV->deltatsq * DEFAULTB * DEFAULTB * (FQWB_9DOF_GBY_KALMAN + FQVG_9DOF_GBY_KALMAN);
+	m_QvAA = FQVA_9DOF_GBY_KALMAN + FQWA_9DOF_GBY_KALMAN + FDEGTORAD * FDEGTORAD * m_deltatsq * (FQWB_9DOF_GBY_KALMAN + FQVG_9DOF_GBY_KALMAN);
+	m_QvMM = FQVM_9DOF_GBY_KALMAN + FQWD_9DOF_GBY_KALMAN + FDEGTORAD * FDEGTORAD * m_deltatsq * DEFAULTB * DEFAULTB * (FQWB_9DOF_GBY_KALMAN + FQVG_9DOF_GBY_KALMAN);
 
 	// initialize the 12x12 noise covariance matrix Qw of the a priori error vector xe-
 	// Qw is then recursively updated as P+ = (1 - K * C) * P- = (1 - K * C) * Qw  and Qw
@@ -217,34 +136,37 @@ void fInit_9DOF_GBY_KALMAN(SV_9DOF_GBY_KALMAN_t *SV)
 	// zero the matrix Qw
 	for (i = 0; i < 12; i++) {
 		for (j = 0; j < 12; j++) {
-			SV->Qw12x12[i][j] = 0.0F;
+			m_Qw12x12[i][j] = 0.0F;
 		}
 	}
 	// loop over non-zero values
 	for (i = 0; i < 3; i++) {
 		// theta_e * theta_e terms
-		SV->Qw12x12[i][i] = FQWINITTHTH_9DOF_GBY_KALMAN;
+		m_Qw12x12[i][i] = FQWINITTHTH_9DOF_GBY_KALMAN;
 		// b_e * b_e terms
-		SV->Qw12x12[i + 3][i + 3] = FQWINITBB_9DOF_GBY_KALMAN;
+		m_Qw12x12[i + 3][i + 3] = FQWINITBB_9DOF_GBY_KALMAN;
 		// th_e * b_e terms
-		SV->Qw12x12[i][i + 3] = SV->Qw12x12[i + 3][i] = FQWINITTHB_9DOF_GBY_KALMAN;
+		m_Qw12x12[i][i + 3] = m_Qw12x12[i + 3][i] = FQWINITTHB_9DOF_GBY_KALMAN;
 		// a_e * a_e terms
-		SV->Qw12x12[i + 6][i + 6] = FQWINITAA_9DOF_GBY_KALMAN;
+		m_Qw12x12[i + 6][i + 6] = FQWINITAA_9DOF_GBY_KALMAN;
 		// d_e * d_e terms
-		SV->Qw12x12[i + 9][i + 9] = FQWINITDD_9DOF_GBY_KALMAN;
+		m_Qw12x12[i + 9][i + 9] = FQWINITDD_9DOF_GBY_KALMAN;
 	}
 
 	// clear the reset flag
-	SV->resetflag = 0;
+	m_resetflag = 0;
 }
 
 
 
 
 // 9DOF orientation function implemented using a 12 element Kalman filter
-void fRun_9DOF_GBY_KALMAN(SV_9DOF_GBY_KALMAN_t *SV,
-		const AccelSensor_t *Accel, const MagSensor_t *Mag, const GyroSensor_t *Gyro,
-		const MagCalibration_t *MagCal)
+void nxp::update(
+	const AccelSensor_t *Accel,
+	const MagSensor_t *Mag,
+	const GyroSensor_t *Gyro,
+	bool isBCurValid,
+	float BCur)
 {
 	// local scalars and arrays
 	float fopp, fadj, fhyp;						// opposite, adjacent and hypoteneuse
@@ -276,8 +198,8 @@ void fRun_9DOF_GBY_KALMAN(SV_9DOF_GBY_KALMAN_t *SV,
 	int8_t iPivot[6];
 
 	// do a reset and return if requested
-	if (SV->resetflag) {
-		fInit_9DOF_GBY_KALMAN(SV);
+	if (m_resetflag) {
+		init();
 		return;
 	}
 
@@ -286,15 +208,15 @@ void fRun_9DOF_GBY_KALMAN(SV_9DOF_GBY_KALMAN_t *SV,
 	// *********************************************************************************
 
 	// do a once-only orientation lock after the first valid magnetic calibration
-	if (MagCal->m_isValid && !SV->FirstOrientationLock) {
+	if (isBCurValid && !m_FirstOrientationLock) {
 		// get the 6DOF orientation matrix and initial inclination angle
-		feCompassNED(SV->RPl, &(SV->DeltaPl), Mag->BcFast, Accel->GpFast);
+		feCompassNED(m_RPl, &(m_DeltaPl), Mag->BcFast, Accel->GpFast);
 
 		// get the orientation quaternion from the orientation matrix
-		fQuaternionFromRotationMatrix(SV->RPl, &(SV->qPl));
+		fQuaternionFromRotationMatrix(m_RPl, &(m_qPl));
 
 		// set the orientation lock flag so this initial alignment is only performed once
-		SV->FirstOrientationLock = 1;
+		m_FirstOrientationLock = 1;
 	}
 
 	// *********************************************************************************
@@ -303,30 +225,30 @@ void fRun_9DOF_GBY_KALMAN(SV_9DOF_GBY_KALMAN_t *SV,
 
 	// compute the angular velocity from the averaged high frequency gyro reading.
 	// omega[k] = yG[k] - b-[k] = yG[k] - b+[k-1] (deg/s)
-	SV->Omega[X] = Gyro->Yp[X] - SV->bPl[X];
-	SV->Omega[Y] = Gyro->Yp[Y] - SV->bPl[Y];
-	SV->Omega[Z] = Gyro->Yp[Z] - SV->bPl[Z];
+	m_Omega[X] = Gyro->Yp[X] - m_bPl[X];
+	m_Omega[Y] = Gyro->Yp[Y] - m_bPl[Y];
+	m_Omega[Z] = Gyro->Yp[Z] - m_bPl[Z];
 
 	// initialize the a priori orientation quaternion to the previous a posteriori estimate
-	SV->qMi = SV->qPl;
+	m_qMi = m_qPl;
 
 	// integrate the buffered high frequency (typically 200Hz) gyro readings
 	for (j = 0; j < OVERSAMPLE_RATIO; j++) {
 		// compute the incremental fast (typically 200Hz) rotation vector rvec (deg)
 		for (i = X; i <= Z; i++) {
-			rvec[i] = (Gyro->YpFast[j][i] - SV->bPl[i]) * SV->Fastdeltat;
+			rvec[i] = (Gyro->YpFast[j][i] - m_bPl[i]) * m_Fastdeltat;
 		}
 
 		// compute the incremental quaternion fDeltaq from the rotation vector
-		fQuaternionFromRotationVectorDeg(&(SV->Deltaq), rvec, 1.0F);
+		fQuaternionFromRotationVectorDeg(&(m_Deltaq), rvec, 1.0F);
 
 		// incrementally rotate the a priori orientation quaternion fqMi
 		// the a posteriori quaternion fqPl is re-normalized later so this update is stable
-		qAeqAxB(&(SV->qMi), &(SV->Deltaq));
+		qAeqAxB(&(m_qMi), &(m_Deltaq));
 	}
 
 	// get the a priori rotation matrix from the a priori quaternion
-	fRotationMatrixFromQuaternion(SV->RMi, &(SV->qMi));
+	fRotationMatrixFromQuaternion(m_RMi, &(m_qMi));
 
 	// *********************************************************************************
 	// calculate a priori gyro, accelerometer and magnetometer estimates
@@ -338,25 +260,25 @@ void fRun_9DOF_GBY_KALMAN(SV_9DOF_GBY_KALMAN_t *SV,
 		// compute the a priori gyro estimate of the gravitational vector (g, sensor frame)
 		// using an absolute rotation of the global frame gravity vector (with magnitude 1g)
 		// NED gravity is along positive z axis
-		SV->gSeGyMi[i] = SV->RMi[i][Z];
+		m_gSeGyMi[i] = m_RMi[i][Z];
 
 		// compute a priori acceleration (a-) (g, sensor frame) from decayed a
 		// posteriori estimate (g, sensor frame)
-		SV->aSeMi[i] = FCA_9DOF_GBY_KALMAN * SV->aSePl[i];
+		m_aSeMi[i] = FCA_9DOF_GBY_KALMAN * m_aSePl[i];
 
 		// compute the a priori gravity error vector (accelerometer minus gyro estimates)
 		// (g, sensor frame)
 		// NED and Windows 8 have positive sign for gravity: y = g - a and g = y + a
-		SV->gErrSeMi[i] = Accel->GpFast[i] + SV->aSeMi[i] - SV->gSeGyMi[i];
+		m_gErrSeMi[i] = Accel->GpFast[i] + m_aSeMi[i] - m_gSeGyMi[i];
 
 		// compute the a priori gyro estimate of the geomagnetic vector (uT, sensor frame)
 		// using an absolute rotation of the global frame geomagnetic vector (with magnitude m_cal_B uT)
 		// NED y component of geomagnetic vector in global frame is zero
-		SV->mSeGyMi[i] = SV->RMi[i][X] * SV->mGl[X] + SV->RMi[i][Z] * SV->mGl[Z];
+		m_mSeGyMi[i] = m_RMi[i][X] * m_mGl[X] + m_RMi[i][Z] * m_mGl[Z];
 
 		// compute the a priori geomagnetic error vector (magnetometer minus gyro estimates)
 		// (g, sensor frame)
-		SV->mErrSeMi[i] = Mag->BcFast[i] - SV->mSeGyMi[i];
+		m_mErrSeMi[i] = Mag->BcFast[i] - m_mSeGyMi[i];
 	}
 
 	// *********************************************************************************
@@ -364,30 +286,30 @@ void fRun_9DOF_GBY_KALMAN(SV_9DOF_GBY_KALMAN_t *SV,
 	// *********************************************************************************
 
 	// update measurement matrix C with -alpha(g-)x and -alpha(m-)x from gyro (g, uT, sensor frame)
-	SV->C6x12[0][1] = FDEGTORAD * SV->gSeGyMi[Z];
-	SV->C6x12[0][2] = -FDEGTORAD * SV->gSeGyMi[Y];
-	SV->C6x12[1][2] = FDEGTORAD * SV->gSeGyMi[X];
-	SV->C6x12[1][0] = -SV->C6x12[0][1];
-	SV->C6x12[2][0] = -SV->C6x12[0][2];
-	SV->C6x12[2][1] = -SV->C6x12[1][2];
-	SV->C6x12[3][1] = FDEGTORAD * SV->mSeGyMi[Z];
-	SV->C6x12[3][2] = -FDEGTORAD * SV->mSeGyMi[Y];
-	SV->C6x12[4][2] = FDEGTORAD * SV->mSeGyMi[X];
-	SV->C6x12[4][0] = -SV->C6x12[3][1];
-	SV->C6x12[5][0] = -SV->C6x12[3][2];
-	SV->C6x12[5][1] = -SV->C6x12[4][2];
-	SV->C6x12[0][4] = -SV->deltat * SV->C6x12[0][1];
-	SV->C6x12[0][5] = -SV->deltat * SV->C6x12[0][2];
-	SV->C6x12[1][5] = -SV->deltat * SV->C6x12[1][2];
-	SV->C6x12[1][3]= -SV->C6x12[0][4];
-	SV->C6x12[2][3]= -SV->C6x12[0][5];
-	SV->C6x12[2][4]= -SV->C6x12[1][5];
-	SV->C6x12[3][4] = -SV->deltat * SV->C6x12[3][1];
-	SV->C6x12[3][5] = -SV->deltat * SV->C6x12[3][2];
-	SV->C6x12[4][5] = -SV->deltat * SV->C6x12[4][2];
-	SV->C6x12[4][3] = -SV->C6x12[3][4];
-	SV->C6x12[5][3] = -SV->C6x12[3][5];
-	SV->C6x12[5][4] = -SV->C6x12[4][5];
+	m_C6x12[0][1] = FDEGTORAD * m_gSeGyMi[Z];
+	m_C6x12[0][2] = -FDEGTORAD * m_gSeGyMi[Y];
+	m_C6x12[1][2] = FDEGTORAD * m_gSeGyMi[X];
+	m_C6x12[1][0] = -m_C6x12[0][1];
+	m_C6x12[2][0] = -m_C6x12[0][2];
+	m_C6x12[2][1] = -m_C6x12[1][2];
+	m_C6x12[3][1] = FDEGTORAD * m_mSeGyMi[Z];
+	m_C6x12[3][2] = -FDEGTORAD * m_mSeGyMi[Y];
+	m_C6x12[4][2] = FDEGTORAD * m_mSeGyMi[X];
+	m_C6x12[4][0] = -m_C6x12[3][1];
+	m_C6x12[5][0] = -m_C6x12[3][2];
+	m_C6x12[5][1] = -m_C6x12[4][2];
+	m_C6x12[0][4] = -m_deltat * m_C6x12[0][1];
+	m_C6x12[0][5] = -m_deltat * m_C6x12[0][2];
+	m_C6x12[1][5] = -m_deltat * m_C6x12[1][2];
+	m_C6x12[1][3]= -m_C6x12[0][4];
+	m_C6x12[2][3]= -m_C6x12[0][5];
+	m_C6x12[2][4]= -m_C6x12[1][5];
+	m_C6x12[3][4] = -m_deltat * m_C6x12[3][1];
+	m_C6x12[3][5] = -m_deltat * m_C6x12[3][2];
+	m_C6x12[4][5] = -m_deltat * m_C6x12[4][2];
+	m_C6x12[4][3] = -m_C6x12[3][4];
+	m_C6x12[5][3] = -m_C6x12[3][5];
+	m_C6x12[5][4] = -m_C6x12[4][5];
 
 	// *********************************************************************************
 	// calculate the Kalman gain matrix K
@@ -408,10 +330,10 @@ void fRun_9DOF_GBY_KALMAN(SV_9DOF_GBY_KALMAN_t *SV,
 			*pftmpA12x6ij = 0.0F;
 
 			// initialize pfC6x12jk for current j, k=0
-			pfC6x12jk = SV->C6x12[j];
+			pfC6x12jk = m_C6x12[j];
 
 			// initialize pfQw12x12ik for current i, k=0
-			pfQw12x12ik = SV->Qw12x12[i];
+			pfQw12x12ik = m_Qw12x12[i];
 
 			// sum matrix products over inner loop over k
 			for (k = 0; k < 12; k++) {
@@ -441,14 +363,14 @@ void fRun_9DOF_GBY_KALMAN(SV_9DOF_GBY_KALMAN_t *SV,
 	// both C and ftmpA12x6 are sparse but not symmetric
 	for (i = 0; i < 6; i++) { // loop over rows of P+
 		// initialize pfPPlus12x12ij for current i, j=i
-		pfPPlus12x12ij = SV->PPlus12x12[i] + i;
+		pfPPlus12x12ij = m_PPlus12x12[i] + i;
 
 		for (j = i; j < 6; j++) { // loop over above diagonal columns of P+
 			// zero P+[i][j]
 			*pfPPlus12x12ij = 0.0F;
 
 			// initialize pfC6x12ik for current i, k=0
-			pfC6x12ik = SV->C6x12[i];
+			pfC6x12ik = m_C6x12[i];
 
 			// initialize pftmpA12x6kj for current j, k=0
 			pftmpA12x6kj = *ftmpA12x6 + j;
@@ -477,21 +399,21 @@ void fRun_9DOF_GBY_KALMAN(SV_9DOF_GBY_KALMAN_t *SV,
 	}
 
 	// add in noise covariance terms to the diagonal
-	SV->PPlus12x12[0][0] +=  SV->QvAA;
-	SV->PPlus12x12[1][1] +=  SV->QvAA;
-	SV->PPlus12x12[2][2] +=  SV->QvAA;
-	SV->PPlus12x12[3][3] +=  SV->QvMM;
-	SV->PPlus12x12[4][4] +=  SV->QvMM;
-	SV->PPlus12x12[5][5] +=  SV->QvMM;
+	m_PPlus12x12[0][0] +=  m_QvAA;
+	m_PPlus12x12[1][1] +=  m_QvAA;
+	m_PPlus12x12[2][2] +=  m_QvAA;
+	m_PPlus12x12[3][3] +=  m_QvMM;
+	m_PPlus12x12[4][4] +=  m_QvMM;
+	m_PPlus12x12[5][5] +=  m_QvMM;
 
 	// copy above diagonal elements of P+ (6x6 scratch sub-matrix) to below diagonal
 	for (i = 1; i < 6; i++)
 		for (j = 0; j < i; j++)
-			SV->PPlus12x12[i][j] = SV->PPlus12x12[j][i];
+			m_PPlus12x12[i][j] = m_PPlus12x12[j][i];
 
 	// calculate inverse of P+ (6x6 scratch sub-matrix) = inv(C * P- * C^T + Qv) = inv(C * Qw * C^T + Qv)
 	for (i = 0; i < 6; i++) {
-		pfRows[i] = SV->PPlus12x12[i];
+		pfRows[i] = m_PPlus12x12[i];
 	}
 	fmatrixAeqInvA(pfRows, iColInd, iRowInd, iPivot, 3);
 
@@ -501,7 +423,7 @@ void fRun_9DOF_GBY_KALMAN(SV_9DOF_GBY_KALMAN_t *SV,
 	// K is not symmetric because C is not symmetric
 	for (i = 0; i < 12; i++) { // loop over rows of K12x6
 		// initialize pfK12x6ij for current i, j=0
-		pfK12x6ij = SV->K12x6[i];
+		pfK12x6ij = m_K12x6[i];
 
 		for (j = 0; j < 6; j++) { // loop over columns of K12x6
 			// zero the matrix element fK12x6[i][j]
@@ -511,7 +433,7 @@ void fRun_9DOF_GBY_KALMAN(SV_9DOF_GBY_KALMAN_t *SV,
 			pftmpA12x6ik = ftmpA12x6[i];
 
 			// initialize pfPPlus12x12kj for current j, k=0
-			pfPPlus12x12kj = *SV->PPlus12x12 + j;
+			pfPPlus12x12kj = *m_PPlus12x12 + j;
 
 			// sum matrix products over inner loop over k
 			for (k = 0; k < 6; k++) {
@@ -538,40 +460,40 @@ void fRun_9DOF_GBY_KALMAN(SV_9DOF_GBY_KALMAN_t *SV,
 	// first calculate all four error vector components using accelerometer error component only
 	// for fThErrPl, fbErrPl, faErrSePl but also magnetometer for fdErrSePl
 	for (i = X; i <= Z; i++) {
-		SV->ThErrPl[i] = SV->K12x6[i][0] * SV->gErrSeMi[X] +
-				SV->K12x6[i][1] * SV->gErrSeMi[Y] +
-				SV->K12x6[i][2] * SV->gErrSeMi[Z];
-		SV->bErrPl[i] = SV->K12x6[i + 3][0] * SV->gErrSeMi[X] +
-				SV->K12x6[i + 3][1] * SV->gErrSeMi[Y] +
-				SV->K12x6[i + 3][2] * SV->gErrSeMi[Z];
-		SV->aErrSePl[i] = SV->K12x6[i + 6][0] * SV->gErrSeMi[X] +
-				SV->K12x6[i + 6][1] * SV->gErrSeMi[Y] +
-				SV->K12x6[i + 6][2] * SV->gErrSeMi[Z];
-		SV->dErrSePl[i] = SV->K12x6[i + 9][0] * SV->gErrSeMi[X] +
-				SV->K12x6[i + 9][1] * SV->gErrSeMi[Y] +
-				SV->K12x6[i + 9][2] * SV->gErrSeMi[Z] +
-				SV->K12x6[i + 9][3] * SV->mErrSeMi[X] +
-				SV->K12x6[i + 9][4] * SV->mErrSeMi[Y] +
-				SV->K12x6[i + 9][5] * SV->mErrSeMi[Z];
+		m_ThErrPl[i] = m_K12x6[i][0] * m_gErrSeMi[X] +
+				m_K12x6[i][1] * m_gErrSeMi[Y] +
+				m_K12x6[i][2] * m_gErrSeMi[Z];
+		m_bErrPl[i] = m_K12x6[i + 3][0] * m_gErrSeMi[X] +
+				m_K12x6[i + 3][1] * m_gErrSeMi[Y] +
+				m_K12x6[i + 3][2] * m_gErrSeMi[Z];
+		m_aErrSePl[i] = m_K12x6[i + 6][0] * m_gErrSeMi[X] +
+				m_K12x6[i + 6][1] * m_gErrSeMi[Y] +
+				m_K12x6[i + 6][2] * m_gErrSeMi[Z];
+		m_dErrSePl[i] = m_K12x6[i + 9][0] * m_gErrSeMi[X] +
+				m_K12x6[i + 9][1] * m_gErrSeMi[Y] +
+				m_K12x6[i + 9][2] * m_gErrSeMi[Z] +
+				m_K12x6[i + 9][3] * m_mErrSeMi[X] +
+				m_K12x6[i + 9][4] * m_mErrSeMi[Y] +
+				m_K12x6[i + 9][5] * m_mErrSeMi[Z];
 	}
 
 	// set the magnetic jamming flag if there is a significant magnetic error power after calibration
-	ftmp = SV->dErrSePl[X] * SV->dErrSePl[X] + SV->dErrSePl[Y] * SV->dErrSePl[Y] +
-			SV->dErrSePl[Z] * SV->dErrSePl[Z];
-	iMagJamming = (MagCal->m_isValid) && (ftmp > (4.0F * MagCal->m_cal_B * MagCal->m_cal_B));
+	ftmp = m_dErrSePl[X] * m_dErrSePl[X] + m_dErrSePl[Y] * m_dErrSePl[Y] +
+			m_dErrSePl[Z] * m_dErrSePl[Z];
+	iMagJamming = (isBCurValid) && (ftmp > (4.0F * BCur * BCur));
 
 	// add the remaining magnetic error terms if there is calibration and no magnetic jamming
-	if (MagCal->m_isValid && !iMagJamming) {
+	if (isBCurValid && !iMagJamming) {
 		for (i = X; i <= Z; i++) {
-			SV->ThErrPl[i] += SV->K12x6[i][3] * SV->mErrSeMi[X] +
-					SV->K12x6[i][4] * SV->mErrSeMi[Y] +
-					SV->K12x6[i][5] * SV->mErrSeMi[Z];
-			SV->bErrPl[i] += SV->K12x6[i + 3][3] * SV->mErrSeMi[X] +
-					SV->K12x6[i + 3][4] * SV->mErrSeMi[Y] +
-					SV->K12x6[i + 3][5] * SV->mErrSeMi[Z];
-			SV->aErrSePl[i] += SV->K12x6[i + 6][3] * SV->mErrSeMi[X] +
-					SV->K12x6[i + 6][4] * SV->mErrSeMi[Y] +
-					SV->K12x6[i + 6][5] * SV->mErrSeMi[Z];
+			m_ThErrPl[i] += m_K12x6[i][3] * m_mErrSeMi[X] +
+					m_K12x6[i][4] * m_mErrSeMi[Y] +
+					m_K12x6[i][5] * m_mErrSeMi[Z];
+			m_bErrPl[i] += m_K12x6[i + 3][3] * m_mErrSeMi[X] +
+					m_K12x6[i + 3][4] * m_mErrSeMi[Y] +
+					m_K12x6[i + 3][5] * m_mErrSeMi[Z];
+			m_aErrSePl[i] += m_K12x6[i + 6][3] * m_mErrSeMi[X] +
+					m_K12x6[i + 6][4] * m_mErrSeMi[Y] +
+					m_K12x6[i + 6][5] * m_mErrSeMi[Z];
 		}
 	}
 
@@ -580,61 +502,61 @@ void fRun_9DOF_GBY_KALMAN(SV_9DOF_GBY_KALMAN_t *SV,
 	// *********************************************************************************
 
 	// get the a posteriori delta quaternion
-	fQuaternionFromRotationVectorDeg(&(SV->Deltaq), SV->ThErrPl, -1.0F);
+	fQuaternionFromRotationVectorDeg(&(m_Deltaq), m_ThErrPl, -1.0F);
 
 	// compute the a posteriori orientation quaternion fqPl = fqMi * Deltaq(-thetae+)
 	// the resulting quaternion may have negative scalar component q0
-	qAeqBxC(&(SV->qPl), &(SV->qMi), &(SV->Deltaq));
+	qAeqBxC(&(m_qPl), &(m_qMi), &(m_Deltaq));
 
 	// normalize the a posteriori orientation quaternion to stop error propagation
 	// the renormalization function ensures that the scalar component q0 is non-negative
-	fqAeqNormqA(&(SV->qPl));
+	fqAeqNormqA(&(m_qPl));
 
 	// compute the a posteriori rotation matrix from the a posteriori quaternion
-	fRotationMatrixFromQuaternion(SV->RPl, &(SV->qPl));
+	fRotationMatrixFromQuaternion(m_RPl, &(m_qPl));
 
 	// compute the rotation vector from the a posteriori quaternion
-	fRotationVectorDegFromQuaternion(&(SV->qPl), SV->RVecPl);
+	fRotationVectorDegFromQuaternion(&(m_qPl), m_RVecPl);
 
 	// update the a posteriori gyro offset vector b+ and
 	// assign the entire linear acceleration error vector to update the linear acceleration
 	for (i = X; i <= Z; i++) {
 		// b+[k] = b-[k] - be+[k] = b+[k] - be+[k] (deg/s)
-		SV->bPl[i] -= SV->bErrPl[i];
+		m_bPl[i] -= m_bErrPl[i];
 		// a+ = a- - ae+ (g, sensor frame)
-		SV->aSePl[i] = SV->aSeMi[i] - SV->aErrSePl[i];
+		m_aSePl[i] = m_aSeMi[i] - m_aErrSePl[i];
 	}
 
 	// compute the linear acceleration in the global frame from the accelerometer measurement (sensor frame).
 	// de-rotate the accelerometer measurement from the sensor to global frame using the inverse (transpose)
 	// of the a posteriori rotation matrix
-	SV->aGlPl[X] = SV->RPl[X][X] * Accel->GpFast[X] + SV->RPl[Y][X] * Accel->GpFast[Y] +
-			SV->RPl[Z][X] * Accel->GpFast[Z];
-	SV->aGlPl[Y] = SV->RPl[X][Y] * Accel->GpFast[X] + SV->RPl[Y][Y] * Accel->GpFast[Y] +
-			SV->RPl[Z][Y] * Accel->GpFast[Z];
-	SV->aGlPl[Z] = SV->RPl[X][Z] * Accel->GpFast[X] + SV->RPl[Y][Z] * Accel->GpFast[Y] +
-			SV->RPl[Z][Z] * Accel->GpFast[Z];
+	m_aGlPl[X] = m_RPl[X][X] * Accel->GpFast[X] + m_RPl[Y][X] * Accel->GpFast[Y] +
+			m_RPl[Z][X] * Accel->GpFast[Z];
+	m_aGlPl[Y] = m_RPl[X][Y] * Accel->GpFast[X] + m_RPl[Y][Y] * Accel->GpFast[Y] +
+			m_RPl[Z][Y] * Accel->GpFast[Z];
+	m_aGlPl[Z] = m_RPl[X][Z] * Accel->GpFast[X] + m_RPl[Y][Z] * Accel->GpFast[Y] +
+			m_RPl[Z][Z] * Accel->GpFast[Z];
 	// remove gravity and correct the sign if the coordinate system is gravity positive / acceleration negative
 	// gravity positive NED
-	SV->aGlPl[X] = -SV->aGlPl[X];
-	SV->aGlPl[Y] = -SV->aGlPl[Y];
-	SV->aGlPl[Z] = -(SV->aGlPl[Z] - 1.0F);
+	m_aGlPl[X] = -m_aGlPl[X];
+	m_aGlPl[Y] = -m_aGlPl[Y];
+	m_aGlPl[Z] = -(m_aGlPl[Z] - 1.0F);
 
 	// update the reference geomagnetic vector using magnetic disturbance error if valid calibration and no jamming
-	if (MagCal->m_isValid && !iMagJamming) {
+	if (isBCurValid && !iMagJamming) {
 		// de-rotate the NED magnetic disturbance error de+ from the sensor to the global reference frame
 		// using the inverse (transpose) of the a posteriori rotation matrix
-		SV->dErrGlPl[X] = SV->RPl[X][X] * SV->dErrSePl[X] +
-				SV->RPl[Y][X] * SV->dErrSePl[Y] +
-				SV->RPl[Z][X] * SV->dErrSePl[Z];
-		SV->dErrGlPl[Z] = SV->RPl[X][Z] * SV->dErrSePl[X] +
-				SV->RPl[Y][Z] * SV->dErrSePl[Y] +
-				SV->RPl[Z][Z] * SV->dErrSePl[Z];
+		m_dErrGlPl[X] = m_RPl[X][X] * m_dErrSePl[X] +
+				m_RPl[Y][X] * m_dErrSePl[Y] +
+				m_RPl[Z][X] * m_dErrSePl[Z];
+		m_dErrGlPl[Z] = m_RPl[X][Z] * m_dErrSePl[X] +
+				m_RPl[Y][Z] * m_dErrSePl[Y] +
+				m_RPl[Z][Z] * m_dErrSePl[Z];
 
 		// compute components of the new geomagnetic vector
 		// the north pointing component fadj must always be non-negative
-		fopp = SV->mGl[Z] - SV->dErrGlPl[Z];
-		fadj = SV->mGl[X] - SV->dErrGlPl[X];
+		fopp = m_mGl[Z] - m_dErrGlPl[Z];
+		fadj = m_mGl[X] - m_dErrGlPl[X];
 		if (fadj < 0.0F) {
 			fadj = 0.0F;
 		}
@@ -657,9 +579,9 @@ void fRun_9DOF_GBY_KALMAN(SV_9DOF_GBY_KALMAN_t *SV,
 			}
 
 			// compute the new geomagnetic vector (always north pointing)
-			SV->DeltaPl = fasin_deg(fsindelta);
-			SV->mGl[X] = MagCal->m_cal_B * fcosdelta;
-			SV->mGl[Z] = MagCal->m_cal_B * fsindelta;
+			m_DeltaPl = fasin_deg(fsindelta);
+			m_mGl[X] = BCur * fcosdelta;
+			m_mGl[Z] = BCur * fsindelta;
 		} // end hyp == 0.0F
 	} // end m_isValid
 
@@ -668,8 +590,8 @@ void fRun_9DOF_GBY_KALMAN(SV_9DOF_GBY_KALMAN_t *SV,
 	// *********************************************************************************
 
 	// calculate the NED Euler angles
-	fNEDAnglesDegFromRotationMatrix(SV->RPl, &(SV->PhiPl), &(SV->ThePl), &(SV->PsiPl),
-			&(SV->RhoPl), &(SV->ChiPl));
+	fNEDAnglesDegFromRotationMatrix(m_RPl, &(m_PhiPl), &(m_ThePl), &(m_PsiPl),
+			&(m_RhoPl), &(m_ChiPl));
 
 	// ***********************************************************************************
 	// calculate (symmetric) a posteriori error covariance matrix P+
@@ -683,17 +605,17 @@ void fRun_9DOF_GBY_KALMAN(SV_9DOF_GBY_KALMAN_t *SV,
 	// the resulting matrix is sparse but not symmetric
 	for (i = 0; i < 6; i++) {
 		// initialize pfPPlus12x12ij for current i, j=0
-		pfPPlus12x12ij = SV->PPlus12x12[i];
+		pfPPlus12x12ij = m_PPlus12x12[i];
 
 		for (j = 0; j < 12; j++) {
 			// zero P+[i][j]
 			*pfPPlus12x12ij = 0.0F;
 
 			// initialize pfC6x12ik for current i, k=0
-			pfC6x12ik = SV->C6x12[i];
+			pfC6x12ik = m_C6x12[i];
 
 			// initialize pfQw12x12kj for current j, k=0
-			pfQw12x12kj = &SV->Qw12x12[0][j];
+			pfQw12x12kj = &m_Qw12x12[0][j];
 
 			// sum matrix products over inner loop over k
 			for (k = 0; k < 12; k++) {
@@ -724,14 +646,14 @@ void fRun_9DOF_GBY_KALMAN(SV_9DOF_GBY_KALMAN_t *SV,
 	// only on and above diagonal terms of P+ are computed since P+ is symmetric
 	for (i = 0; i < 12; i++) {
 		// initialize pfQw12x12ij for current i, j=i
-		pfQw12x12ij = SV->Qw12x12[i] + i;
+		pfQw12x12ij = m_Qw12x12[i] + i;
 
 		for (j = i; j < 12; j++) {
 			// initialize pfK12x6ik for current i, k=0
-			pfK12x6ik = SV->K12x6[i];
+			pfK12x6ik = m_K12x6[i];
 
 			// initialize pfPPlus12x12kj for current j, k=0
-			pfPPlus12x12kj = *SV->PPlus12x12 + j;
+			pfPPlus12x12kj = *m_PPlus12x12 + j;
 
 			// compute on and above diagonal matrix entry
 			for (k = 0; k < 6; k++) {
@@ -754,15 +676,15 @@ void fRun_9DOF_GBY_KALMAN(SV_9DOF_GBY_KALMAN_t *SV,
 	// after execution of this code P+ is valid but Qw remains invalid
 	for (i = 0; i < 12; i++) {
 		// initialize pfPPlus12x12ij and pfQw12x12ij for current i, j=i
-		pfPPlus12x12ij = SV->PPlus12x12[i] + i;
-		pfQw12x12ij = SV->Qw12x12[i] + i;
+		pfPPlus12x12ij = m_PPlus12x12[i] + i;
+		pfQw12x12ij = m_Qw12x12[i] + i;
 
 		// copy the on-diagonal elements and increment pointers to enter loop at j=i+1
 		*(pfPPlus12x12ij++) = *(pfQw12x12ij++);
 
 		// loop over above diagonal columns j copying to below-diagonal elements
 		for (j = i + 1; j < 12; j++) {
-			*(pfPPlus12x12ij++)= SV->PPlus12x12[j][i] = *(pfQw12x12ij++);
+			*(pfPPlus12x12ij++)= m_PPlus12x12[j][i] = *(pfQw12x12ij++);
 		}
 	}
 
@@ -775,27 +697,32 @@ void fRun_9DOF_GBY_KALMAN(SV_9DOF_GBY_KALMAN_t *SV,
 	// zero the matrix Qw
 	for (i = 0; i < 12; i++) {
 		for (j = 0; j < 12; j++) {
-			SV->Qw12x12[i][j] = 0.0F;
+			m_Qw12x12[i][j] = 0.0F;
 		}
 	}
 
 	// update the covariance matrix components
 	for (i = 0; i < 3; i++) {
 		// Qw[th-th-] = Qw[0-2][0-2] = E[th-(th-)^T] = Q[th+th+] + deltat^2 * (Q[b+b+] + (Qwb + QvG) * I)
-		SV->Qw12x12[i][i] = SV->PPlus12x12[i][i] + SV->deltatsq * (SV->PPlus12x12[i + 3][i + 3] + SV->QwbplusQvG);
+		m_Qw12x12[i][i] = m_PPlus12x12[i][i] + m_deltatsq * (m_PPlus12x12[i + 3][i + 3] + m_QwbplusQvG);
 
 		// Qw[b-b-] = Qw[3-5][3-5] = E[b-(b-)^T] = Q[b+b+] + Qwb * I
-		SV->Qw12x12[i + 3][i + 3] = SV->PPlus12x12[i + 3][i + 3] + FQWB_9DOF_GBY_KALMAN;
+		m_Qw12x12[i + 3][i + 3] = m_PPlus12x12[i + 3][i + 3] + FQWB_9DOF_GBY_KALMAN;
 
 		// Qw[th-b-] = Qw[0-2][3-5] = E[th-(b-)^T] = -deltat * (Q[b+b+] + Qwb * I) = -deltat * Qw[b-b-]
-		SV->Qw12x12[i][i + 3] = SV->Qw12x12[i + 3][i] = -SV->deltat * SV->Qw12x12[i + 3][i + 3];
+		m_Qw12x12[i][i + 3] = m_Qw12x12[i + 3][i] = -m_deltat * m_Qw12x12[i + 3][i + 3];
 
 		// Qw[a-a-] = Qw[6-8][6-8] = E[a-(a-)^T] = ca^2 * Q[a+a+] + Qwa * I
-		SV->Qw12x12[i + 6][i + 6] = SV->casq * SV->PPlus12x12[i + 6][i + 6] + FQWA_9DOF_GBY_KALMAN;
+		m_Qw12x12[i + 6][i + 6] = m_casq * m_PPlus12x12[i + 6][i + 6] + FQWA_9DOF_GBY_KALMAN;
 
 		// Qw[d-d-] = Qw[9-11][9-11] = E[d-(d-)^T] = cd^2 * Q[d+d+] + Qwd * I
-		SV->Qw12x12[i + 9][i + 9] = SV->cdsq * SV->PPlus12x12[i + 9][i + 9] + FQWD_9DOF_GBY_KALMAN;
+		m_Qw12x12[i + 9][i + 9] = m_cdsq * m_PPlus12x12[i + 9][i + 9] + FQWD_9DOF_GBY_KALMAN;
 	}
+}
+
+void nxp::read(Quaternion_t* q)
+{
+	*q = m_qPl;
 }
 
 
@@ -1495,5 +1422,4 @@ static float fatan_15deg(float x)
 	return (x * (PADE_A + x2 * PADE_B) / (PADE_C + x2));
 }
 
-
-#endif // USE_NXP_FUSION
+} // namespace libcalib

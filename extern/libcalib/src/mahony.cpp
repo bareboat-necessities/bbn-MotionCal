@@ -20,49 +20,35 @@
 
 //----------------------------------------------------------------------------------------------
 
-#include "libcalib.h"
+#include "libcalib_mahony.h"
 
-#ifdef USE_MAHONY_FUSION
+#include <math.h>
+
+namespace libcalib
+{
 
 //----------------------------------------------------------------------------------------------
 // Definitions
 
-#define twoKpDef	(2.0f * 0.02f)	// 2 * proportional gain
-#define twoKiDef	(2.0f * 0.0f)	// 2 * integral gain
+constexpr float twoKpDef = (2.0f * 0.02f);	// 2 * proportional gain
+constexpr float twoKiDef = (2.0f * 0.0f);	// 2 * integral gain
 
-#define INV_SAMPLE_RATE  (1.0f / SENSORFS)
+constexpr float INV_SAMPLE_RATE = (1.0f / SENSORFS);
 
-//----------------------------------------------------------------------------------------------
-// Variable definitions
+// switched from tricky "fast" inverse square root to builtin because the trick is slow now.
+//	https://en.wikipedia.org/wiki/Fast_inverse_square_root#Obsolescence
+// static float invSqrt(float x);
 
-static float twoKp = twoKpDef;		// 2 * proportional gain (Kp)
-static float twoKi = twoKiDef;		// 2 * integral gain (Ki)
-static float q0 = 1.0f, q1 = 0.0f, q2 = 0.0f, q3 = 0.0f; // quaternion of sensor frame relative to auxiliary frame
-static float integralFBx = 0.0f,  integralFBy = 0.0f, integralFBz = 0.0f; // integral error terms scaled by Ki
-
-
-//==============================================================================================
-// Functions
-
-static float invSqrt(float x);
-static void mahony_init();
-static void mahony_update(float gx, float gy, float gz, float ax, float ay, float az, float mx, float my, float mz);
-void mahony_updateIMU(float gx, float gy, float gz, float ax, float ay, float az);
-
-static int reset_next_update=0;
-
-
-void fusion_init()
-{
-	mahony_init();
-}
-
-void fusion_update(const AccelSensor_t *Accel, const MagSensor_t *Mag, const GyroSensor_t *Gyro,
-    const MagCalibration_t *MagCal)
+void mahony::update(
+	const AccelSensor_t *Accel,
+	const MagSensor_t *Mag,
+	const GyroSensor_t* Gyro,
+	bool isBCurValid,
+	float BCur)
 {
 	int i;
 	float ax, ay, az, gx, gy, gz, mx, my, mz;
-	float factor = M_PI / 180.0;
+	constexpr float factor = M_PI / 180.0;
 
 	ax = Accel->Gp[0];
 	ay = Accel->Gp[1];
@@ -77,44 +63,40 @@ void fusion_update(const AccelSensor_t *Accel, const MagSensor_t *Mag, const Gyr
 		gx *= factor;
 		gy *= factor;
 		gz *= factor;
-		mahony_update(gx, gy, gz, ax, ay, az, mx, my, mz);
+		update(gx, gy, gz, ax, ay, az, mx, my, mz);
 	}
 }
 
-void fusion_read(Quaternion_t *q)
+void mahony::read(Quaternion_t* q)
 {
-	q->q0 = q0;
-	q->q1 = q1;
-	q->q2 = q2;
-	q->q3 = q3;
+	q->q0 = m_q0;
+	q->q1 = m_q1;
+	q->q2 = m_q2;
+	q->q3 = m_q3;
 }
-
 
 //----------------------------------------------------------------------------------------------
 // AHRS algorithm update
 
-static void mahony_init()
+void mahony::init(bool first)
 {
-	static int first=1;
-
-	twoKp = twoKpDef;	// 2 * proportional gain (Kp)
-	twoKi = twoKiDef;	// 2 * integral gain (Ki)
+	m_twoKp = twoKpDef;	// 2 * proportional gain (Kp)
+	m_twoKi = twoKiDef;	// 2 * integral gain (Ki)
 	if (first) {
-		q0 = 1.0f;
-		q1 = 0.0f;	// TODO: set a flag to immediately capture
-		q2 = 0.0f;	// magnetic orientation on next update
-		q3 = 0.0f;
-		first = 0;
+		m_q0 = 1.0f;
+		m_q1 = 0.0f;	// TODO: set a flag to immediately capture
+		m_q2 = 0.0f;	// magnetic orientation on next update
+		m_q3 = 0.0f;
 	}
-	reset_next_update = 1;
-	integralFBx = 0.0f;
-	integralFBy = 0.0f;
-	integralFBz = 0.0f;
+	m_reset_next_update = true;
+	m_integralFBx = 0.0f;
+	m_integralFBy = 0.0f;
+	m_integralFBz = 0.0f;
 }
 
-static void mahony_update(float gx, float gy, float gz, float ax, float ay, float az, float mx, float my, float mz)
+void mahony::update(float gx, float gy, float gz, float ax, float ay, float az, float mx, float my, float mz)
 {
-	float recipNorm;
+	float norm;
 	float q0q0, q0q1, q0q2, q0q3, q1q1, q1q2, q1q3, q2q2, q2q3, q3q3;
 	float hx, hy, bx, bz;
 	float halfvx, halfvy, halfvz, halfwx, halfwy, halfwz;
@@ -124,7 +106,7 @@ static void mahony_update(float gx, float gy, float gz, float ax, float ay, floa
 	// Use IMU algorithm if magnetometer measurement invalid
 	// (avoids NaN in magnetometer normalisation)
 	if((mx == 0.0f) && (my == 0.0f) && (mz == 0.0f)) {
-		mahony_updateIMU(gx, gy, gz, ax, ay, az);
+		updateIMU(gx, gy, gz, ax, ay, az);
 		return;
 	}
 
@@ -133,35 +115,35 @@ static void mahony_update(float gx, float gy, float gz, float ax, float ay, floa
 	if(!((ax == 0.0f) && (ay == 0.0f) && (az == 0.0f))) {
 
 		// Normalise accelerometer measurement
-		recipNorm = invSqrt(ax * ax + ay * ay + az * az);
-		ax *= recipNorm;
-		ay *= recipNorm;
-		az *= recipNorm;
+		norm = sqrtf(ax * ax + ay * ay + az * az);
+		ax /= norm;
+		ay /= norm;
+		az /= norm;
 
 		// Normalise magnetometer measurement
-		recipNorm = invSqrt(mx * mx + my * my + mz * mz);
-		mx *= recipNorm;
-		my *= recipNorm;
-		mz *= recipNorm;
+		norm = sqrtf(mx * mx + my * my + mz * mz);
+		mx /= norm;
+		my /= norm;
+		mz /= norm;
 #if 0
 		// crazy experiement - no filter, just use magnetometer...
-		q0 = 0;
-		q1 = mx;
-		q2 = my;
-		q3 = mz;
+		m_q0 = 0;
+		m_q1 = mx;
+		m_q2 = my;
+		m_q3 = mz;
 		return;
 #endif
 		// Auxiliary variables to avoid repeated arithmetic
-		q0q0 = q0 * q0;
-		q0q1 = q0 * q1;
-		q0q2 = q0 * q2;
-		q0q3 = q0 * q3;
-		q1q1 = q1 * q1;
-		q1q2 = q1 * q2;
-		q1q3 = q1 * q3;
-		q2q2 = q2 * q2;
-		q2q3 = q2 * q3;
-		q3q3 = q3 * q3;
+		q0q0 = m_q0 * m_q0;
+		q0q1 = m_q0 * m_q1;
+		q0q2 = m_q0 * m_q2;
+		q0q3 = m_q0 * m_q3;
+		q1q1 = m_q1 * m_q1;
+		q1q2 = m_q1 * m_q2;
+		q1q3 = m_q1 * m_q3;
+		q2q2 = m_q2 * m_q2;
+		q2q3 = m_q2 * m_q3;
+		q3q3 = m_q3 * m_q3;
 
 		// Reference direction of Earth's magnetic field
 		hx = 2.0f * (mx * (0.5f - q2q2 - q3q3) + my * (q1q2 - q0q3) + mz * (q1q3 + q0q2));
@@ -184,32 +166,32 @@ static void mahony_update(float gx, float gy, float gz, float ax, float ay, floa
 		halfez = (ax * halfvy - ay * halfvx) + (mx * halfwy - my * halfwx);
 
 		// Compute and apply integral feedback if enabled
-		if(twoKi > 0.0f) {
+		if(m_twoKi > 0.0f) {
 			// integral error scaled by Ki
-			integralFBx += twoKi * halfex * INV_SAMPLE_RATE;
-			integralFBy += twoKi * halfey * INV_SAMPLE_RATE;
-			integralFBz += twoKi * halfez * INV_SAMPLE_RATE;
-			gx += integralFBx;	// apply integral feedback
-			gy += integralFBy;
-			gz += integralFBz;
+			m_integralFBx += m_twoKi * halfex * INV_SAMPLE_RATE;
+			m_integralFBy += m_twoKi * halfey * INV_SAMPLE_RATE;
+			m_integralFBz += m_twoKi * halfez * INV_SAMPLE_RATE;
+			gx += m_integralFBx;	// apply integral feedback
+			gy += m_integralFBy;
+			gz += m_integralFBz;
 		} else {
-			integralFBx = 0.0f;	// prevent integral windup
-			integralFBy = 0.0f;
-			integralFBz = 0.0f;
+			m_integralFBx = 0.0f;	// prevent integral windup
+			m_integralFBy = 0.0f;
+			m_integralFBz = 0.0f;
 		}
 
 		//printf("err =  %.3f, %.3f, %.3f\n", halfex, halfey, halfez);
 
 		// Apply proportional feedback
-		if (reset_next_update) {
+		if (m_reset_next_update) {
 			gx += 2.0f * halfex;
 			gy += 2.0f * halfey;
 			gz += 2.0f * halfez;
-			reset_next_update = 0;
+			m_reset_next_update = 0;
 		} else {
-			gx += twoKp * halfex;
-			gy += twoKp * halfey;
-			gz += twoKp * halfez;
+			gx += m_twoKp * halfex;
+			gy += m_twoKp * halfey;
+			gz += m_twoKp * halfez;
 		}
 	}
 
@@ -217,28 +199,28 @@ static void mahony_update(float gx, float gy, float gz, float ax, float ay, floa
 	gx *= (0.5f * INV_SAMPLE_RATE);		// pre-multiply common factors
 	gy *= (0.5f * INV_SAMPLE_RATE);
 	gz *= (0.5f * INV_SAMPLE_RATE);
-	qa = q0;
-	qb = q1;
-	qc = q2;
-	q0 += (-qb * gx - qc * gy - q3 * gz);
-	q1 += (qa * gx + qc * gz - q3 * gy);
-	q2 += (qa * gy - qb * gz + q3 * gx);
-	q3 += (qa * gz + qb * gy - qc * gx);
+	qa = m_q0;
+	qb = m_q1;
+	qc = m_q2;
+	m_q0 += (-qb * gx - qc * gy - m_q3 * gz);
+	m_q1 += (qa * gx + qc * gz - m_q3 * gy);
+	m_q2 += (qa * gy - qb * gz + m_q3 * gx);
+	m_q3 += (qa * gz + qb * gy - qc * gx);
 
 	// Normalise quaternion
-	recipNorm = invSqrt(q0 * q0 + q1 * q1 + q2 * q2 + q3 * q3);
-	q0 *= recipNorm;
-	q1 *= recipNorm;
-	q2 *= recipNorm;
-	q3 *= recipNorm;
+	norm = sqrtf(m_q0 * m_q0 + m_q1 * m_q1 + m_q2 * m_q2 + m_q3 * m_q3);
+	m_q0 /= norm;
+	m_q1 /= norm;
+	m_q2 /= norm;
+	m_q3 /= norm;
 }
 
 //---------------------------------------------------------------------------------------------
 // IMU algorithm update
 
-void mahony_updateIMU(float gx, float gy, float gz, float ax, float ay, float az)
+void mahony::updateIMU(float gx, float gy, float gz, float ax, float ay, float az)
 {
-	float recipNorm;
+	float norm;
 	float halfvx, halfvy, halfvz;
 	float halfex, halfey, halfez;
 	float qa, qb, qc;
@@ -248,15 +230,15 @@ void mahony_updateIMU(float gx, float gy, float gz, float ax, float ay, float az
 	if (!((ax == 0.0f) && (ay == 0.0f) && (az == 0.0f))) {
 
 		// Normalise accelerometer measurement
-		recipNorm = invSqrt(ax * ax + ay * ay + az * az);
-		ax *= recipNorm;
-		ay *= recipNorm;
-		az *= recipNorm;
+		norm = sqrtf(ax * ax + ay * ay + az * az);
+		ax /= norm;
+		ay /= norm;
+		az /= norm;
 
 		// Estimated direction of gravity and vector perpendicular to magnetic flux
-		halfvx = q1 * q3 - q0 * q2;
-		halfvy = q0 * q1 + q2 * q3;
-		halfvz = q0 * q0 - 0.5f + q3 * q3;
+		halfvx = m_q1 * m_q3 - m_q0 * m_q2;
+		halfvy = m_q0 * m_q1 + m_q2 * m_q3;
+		halfvz = m_q0 * m_q0 - 0.5f + m_q3 * m_q3;
 
 		// Error is sum of cross product between estimated and measured direction of gravity
 		halfex = (ay * halfvz - az * halfvy);
@@ -264,67 +246,44 @@ void mahony_updateIMU(float gx, float gy, float gz, float ax, float ay, float az
 		halfez = (ax * halfvy - ay * halfvx);
 
 		// Compute and apply integral feedback if enabled
-		if(twoKi > 0.0f) {
+		if(m_twoKi > 0.0f) {
 			// integral error scaled by Ki
-			integralFBx += twoKi * halfex * INV_SAMPLE_RATE;
-			integralFBy += twoKi * halfey * INV_SAMPLE_RATE;
-			integralFBz += twoKi * halfez * INV_SAMPLE_RATE;
-			gx += integralFBx;	// apply integral feedback
-			gy += integralFBy;
-			gz += integralFBz;
+			m_integralFBx += m_twoKi * halfex * INV_SAMPLE_RATE;
+			m_integralFBy += m_twoKi * halfey * INV_SAMPLE_RATE;
+			m_integralFBz += m_twoKi * halfez * INV_SAMPLE_RATE;
+			gx += m_integralFBx;	// apply integral feedback
+			gy += m_integralFBy;
+			gz += m_integralFBz;
 		} else {
-			integralFBx = 0.0f;	// prevent integral windup
-			integralFBy = 0.0f;
-			integralFBz = 0.0f;
+			m_integralFBx = 0.0f;	// prevent integral windup
+			m_integralFBy = 0.0f;
+			m_integralFBz = 0.0f;
 		}
 
 		// Apply proportional feedback
-		gx += twoKp * halfex;
-		gy += twoKp * halfey;
-		gz += twoKp * halfez;
+		gx += m_twoKp * halfex;
+		gy += m_twoKp * halfey;
+		gz += m_twoKp * halfez;
 	}
 
 	// Integrate rate of change of quaternion
 	gx *= (0.5f * INV_SAMPLE_RATE);		// pre-multiply common factors
 	gy *= (0.5f * INV_SAMPLE_RATE);
 	gz *= (0.5f * INV_SAMPLE_RATE);
-	qa = q0;
-	qb = q1;
-	qc = q2;
-	q0 += (-qb * gx - qc * gy - q3 * gz);
-	q1 += (qa * gx + qc * gz - q3 * gy);
-	q2 += (qa * gy - qb * gz + q3 * gx);
-	q3 += (qa * gz + qb * gy - qc * gx);
+	qa = m_q0;
+	qb = m_q1;
+	qc = m_q2;
+	m_q0 += (-qb * gx - qc * gy - m_q3 * gz);
+	m_q1 += (qa * gx + qc * gz - m_q3 * gy);
+	m_q2 += (qa * gy - qb * gz + m_q3 * gx);
+	m_q3 += (qa * gz + qb * gy - qc * gx);
 
 	// Normalise quaternion
-	recipNorm = invSqrt(q0 * q0 + q1 * q1 + q2 * q2 + q3 * q3);
-	q0 *= recipNorm;
-	q1 *= recipNorm;
-	q2 *= recipNorm;
-	q3 *= recipNorm;
+	norm = sqrtf(m_q0 * m_q0 + m_q1 * m_q1 + m_q2 * m_q2 + m_q3 * m_q3);
+	m_q0 /= norm;
+	m_q1 /= norm;
+	m_q2 /= norm;
+	m_q3 /= norm;
 }
 
-//---------------------------------------------------------------------------------------------
-// Fast inverse square-root
-// See: http://en.wikipedia.org/wiki/Fast_inverse_square_root
-
-static float invSqrt(float x) {
-	union {
-		float f;
-		int32_t i;
-	} y;
-	float halfx = 0.5f * x;
-
-	y.f = x;
-	y.i = 0x5f375a86 - (y.i >> 1);
-	y.f = y.f * (1.5f - (halfx * y.f * y.f));
-	y.f = y.f * (1.5f - (halfx * y.f * y.f));
-	y.f = y.f * (1.5f - (halfx * y.f * y.f));
-	return y.f;
-}
-
-//==============================================================================================
-// END OF CODE
-//==============================================================================================
-
-#endif // USE_MAHONY_FUSION
+} // namespace libcalib
