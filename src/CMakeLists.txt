@@ -1,4 +1,4 @@
-set(SRCS gui.cpp portlist.cpp serialdata.cpp visualize.cpp)
+set(SRCS gui.cpp gui.h imuread.h portlist.cpp serialdata.cpp visualize.cpp)
 set(PNGS checkempty.png checkemptygray.png checkgreen.png)
 
 find_package(OpenGL REQUIRED)

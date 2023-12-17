@@ -5,10 +5,15 @@ add_library(libcalib STATIC)
 
 target_sources(libcalib
     PRIVATE
+		include/libcalib.h
+		include/libcalib_common.h
+		include/libcalib_mahony.h
+		include/libcalib_nxp.h
         src/libcalib.cpp
 		src/magcal.cpp
 		src/mahony.cpp
 		src/matrix.cpp
+		src/matrix.h
         src/nxp.cpp
 		src/quality.cpp
 		src/rawdata.cpp
