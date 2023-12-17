@@ -268,9 +268,9 @@ void MyFrame::OnTimer(wxTimerEvent &event)
 			firstrun = 0;
 		}
 		m_canvas->Refresh();
-		gaps = quality_surface_gap_error();
-		variance = quality_magnitude_variance_error();
-		wobble = quality_wobble_error();
+		gaps = magcal.m_quality.surface_gap_error();
+		variance = magcal.m_quality.magnitude_variance_error();
+		wobble = magcal.m_quality.wobble_error();
 		fiterror = magcal.m_errorFit;
 		if (gaps < 15.0f && variance < 4.5f && wobble < 4.0f && fiterror < 5.0f) {
 			if (!m_sendcal_menu->IsEnabled(ID_SENDCAL_MENU) || !m_button_sendcal->IsEnabled()) {
@@ -285,11 +285,11 @@ void MyFrame::OnTimer(wxTimerEvent &event)
 				m_confirm_icon->SetBitmap(MyBitmap("checkemptygray.png"));
 			}
 		}
-		snprintf(buf, sizeof(buf), "%.1f%%", quality_surface_gap_error());
+		snprintf(buf, sizeof(buf), "%.1f%%", magcal.m_quality.surface_gap_error());
 		m_err_coverage->SetLabelText(buf);
-		snprintf(buf, sizeof(buf), "%.1f%%", quality_magnitude_variance_error());
+		snprintf(buf, sizeof(buf), "%.1f%%", magcal.m_quality.magnitude_variance_error());
 		m_err_variance->SetLabelText(buf);
-		snprintf(buf, sizeof(buf), "%.1f%%", quality_wobble_error());
+		snprintf(buf, sizeof(buf), "%.1f%%", magcal.m_quality.wobble_error());
 		m_err_wobble->SetLabelText(buf);
 		snprintf(buf, sizeof(buf), "%.1f%%", magcal.m_errorFit);
 		m_err_fit->SetLabelText(buf);

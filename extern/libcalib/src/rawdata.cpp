@@ -18,6 +18,7 @@ MagCalibration_t::MagCalibration_t()
 , m_aBpFast()
 , m_aBpIsValid()
 , m_cBpIsValid()
+, m_quality()
 , m_errorFitAged()
 , m_calNext_V()
 , m_calNext_invW()
@@ -62,7 +63,7 @@ int MagCalibration_t::choose_discard_magcal()
 
 	// When enough data is collected (gaps error is low), assume we
 	// have a pretty good coverage and the field stregth is known.
-	gaps = quality_surface_gap_error();
+	gaps = m_quality.surface_gap_error();
 	if (gaps < 25.0f) {
 		// occasionally look for points farthest from average field strength
 		// always rate limit assumption-based data purging, but allow the

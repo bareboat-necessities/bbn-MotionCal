@@ -9,6 +9,7 @@ target_sources(libcalib
 		include/libcalib_common.h
 		include/libcalib_mahony.h
 		include/libcalib_nxp.h
+		include/libcalib_quality.h
         src/libcalib.cpp
 		src/magcal.cpp
 		src/mahony.cpp

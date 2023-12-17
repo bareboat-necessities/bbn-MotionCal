@@ -7,6 +7,7 @@
 constexpr float M_PI = 3.141592653589793238462643383279502884197169399375105820974944592307816406;
 #endif
 
+constexpr int MAGBUFFSIZE = 650; // Freescale's lib needs at least 392
 constexpr int SENSORFS = 100;
 constexpr int OVERSAMPLE_RATIO = 4;
 

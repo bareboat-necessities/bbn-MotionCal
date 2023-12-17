@@ -3,10 +3,9 @@
 #include "libcalib_common.h"
 #include "libcalib_nxp.h"
 #include "libcalib_mahony.h"
+#include "libcalib_quality.h"
 
 // magnetic calibration & buffer structure
-
-constexpr int MAGBUFFSIZE = 650; // Freescale's lib needs at least 392
 
 class MagCalibration_t
 {
@@ -27,6 +26,8 @@ public:
     int16_t m_aBpFast[3][MAGBUFFSIZE];   // uncalibrated magnetometer readings
     int8_t  m_aBpIsValid[MAGBUFFSIZE];        // 1=has data, 0=empty slot
     int16_t m_cBpIsValid;           // number of magnetometer readings
+
+	libcalib::quality m_quality;
 private:
 
 	int choose_discard_magcal();
@@ -55,13 +56,3 @@ private:
 
     libcalib::nxp m_fusion;
 };
-
-
-#define USE_NXP_FUSION
-//#define USE_MAHONY_FUSION
-
-void quality_reset(void);
-void quality_update(const Point_t* point);
-float quality_surface_gap_error(void);
-float quality_magnitude_variance_error(void);
-float quality_wobble_error(void);

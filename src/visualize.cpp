@@ -46,7 +46,7 @@ void display_callback()
 	Point_t point, draw;
 	Quaternion_t orientation;
 
-	quality_reset();
+	magcal.m_quality.reset();
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	glColor3f(1, 0, 0);	// set current color to red
 	glLoadIdentity();
@@ -90,7 +90,7 @@ void display_callback()
 				//point.x *= -1.0f;
 				//point.y *= -1.0f;
 				//point.z *= -1.0f;
-				quality_update(&point);
+				magcal.m_quality.update(&point);
 				rotate(&point, &draw, rotation);
 				glPushMatrix();
 				if (invert_x) draw.x *= -1.0f;
