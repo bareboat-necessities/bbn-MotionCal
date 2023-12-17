@@ -64,7 +64,7 @@ void display_callback()
 
 	//if (hard_iron.valid) {
 	if (1) {
-		memcpy(&orientation, &current_orientation, sizeof(orientation));
+		orientation = current_orientation;
 		// TODO: this almost but doesn't perfectly seems to get the
 		//  real & screen axes in sync....
 		if (invert_q0) orientation.q0 *= -1.0f;
