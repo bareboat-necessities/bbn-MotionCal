@@ -9,8 +9,15 @@
 
 #ifdef _MSC_VER 
 //not #if defined(_WIN32) || defined(_WIN64) because we have strncasecmp in mingw
-#define strncasecmp _strnicmp
-#define strcasecmp _stricmp
+inline int strncasecmp(char const* _String1, char const* _String2, size_t _MaxCount)
+{
+	return _strnicmp(_String1, _String2, _MaxCount);
+}
+
+inline int strcasecmp(char const* _String1, char const* _String2)
+{
+	return _stricmp(_String1, _String2);
+}
 #endif
 
 namespace image2wx
