@@ -4,7 +4,6 @@
 #include "image2wx/image2wx.h"
 
 MagCalibration_t magcal;
-Quaternion_t current_orientation;
 
 
 wxString port_name;

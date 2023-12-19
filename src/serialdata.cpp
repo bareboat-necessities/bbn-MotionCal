@@ -112,7 +112,7 @@ static int ascii_parse(const unsigned char *data, int len)
 				if (((int16_t)ascii_num) != ascii_num) goto fail;
 				if (ascii_raw_data_count != 8) goto fail;
 				ascii_raw_data[ascii_raw_data_count] = ascii_num;
-				magcal.add_raw_data(ascii_raw_data, &current_orientation);
+				magcal.add_raw_data(ascii_raw_data);
 				ret = 1;
 				ascii_raw_data_count = 0;
 				ascii_num = 0;

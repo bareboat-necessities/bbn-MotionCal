@@ -32,7 +32,6 @@
 #include "libcalib.h"
 
 extern MagCalibration_t magcal;
-extern Quaternion_t current_orientation;
 
 #if defined(LINUX)
   #define PORT "/dev/ttyACM0"

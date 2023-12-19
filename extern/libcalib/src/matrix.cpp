@@ -32,12 +32,12 @@
 #include "matrix.h"
 
 // compile time constants that are private to this file
-#define CORRUPTMATRIX 0.001F			// column vector modulus limit for rotation matrix
+constexpr float CORRUPTMATRIX = 0.001F;	// column vector modulus limit for rotation matrix
 
 // vector components
-#define X 0
-#define Y 1
-#define Z 2
+constexpr int X = 0;
+constexpr int Y = 1;
+constexpr int Z = 2;
 
 // function sets the 3x3 matrix A to the identity matrix
 void f3x3matrixAeqI(float A[][3])
@@ -168,7 +168,7 @@ float f3x3matrixDetA(float A[][3])
 void eigencompute(float A[][10], float eigval[], float eigvec[][10], int8_t n)
 {
 	// maximum number of iterations to achieve convergence: in practice 6 is typical
-#define NITERATIONS 15
+	constexpr int s_ctrMax = 15;
 
 	// various trig functions of the jacobi rotation angle phi
 	float cot2phi, tanhalfphi, tanphi, sinphi, cosphi;
@@ -198,7 +198,7 @@ void eigencompute(float A[][10], float eigval[], float eigvec[][10], int8_t n)
 		eigval[ir] = A[ir][ir];
 	}
 
-	// initialize the counter and loop until converged or NITERATIONS reached
+	// initialize the counter and loop until converged or s_ctrMax reached
 	ctr = 0;
 	do {
 		// compute the absolute value of the above diagonal elements as exit criterion
@@ -287,7 +287,7 @@ void eigencompute(float A[][10], float eigval[], float eigvec[][10], int8_t n)
 				}   // end of loop over columns
 			}   // end of loop over rows
 		}  // end of test for non-zero residue
-	} while ((residue > 0.0F) && (ctr++ < NITERATIONS)); // end of main loop
+	} while ((residue > 0.0F) && (ctr++ < s_ctrMax)); // end of main loop
 }
 
 // function uses Gauss-Jordan elimination to compute the inverse of matrix A in situ

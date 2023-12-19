@@ -37,7 +37,7 @@ constexpr float INV_SAMPLE_RATE = (1.0f / SENSORFS);
 
 // switched from tricky "fast" inverse square root to builtin because the trick is slow now.
 //	https://en.wikipedia.org/wiki/Fast_inverse_square_root#Obsolescence
-// static float invSqrt(float x);
+// float invSqrt(float x);
 
 void mahony::update(
 	const AccelSensor_t *Accel,

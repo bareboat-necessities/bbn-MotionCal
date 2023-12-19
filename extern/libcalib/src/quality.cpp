@@ -10,7 +10,7 @@ namespace libcalib
 // https://forum.pjrc.com/threads/59277-Motion-Sensor-Calibration-Tool-Parameter-Understanding
 
 // return 0 to 99 - which region on the sphere (100 of equal surface area)
-static int sphere_region(float x, float y, float z)
+int sphere_region(float x, float y, float z)
 {
 	float latitude, longitude;
 	int region;

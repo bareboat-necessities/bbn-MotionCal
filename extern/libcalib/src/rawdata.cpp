@@ -4,13 +4,11 @@
 #include <string.h>
 #include <math.h>
 
-#ifdef _WIN32
-#define random() rand()
-#endif
 
 
 MagCalibration_t::MagCalibration_t()
-: m_cal_V()
+: m_current_orientation()
+, m_cal_V()
 , m_cal_invW()
 , m_cal_B()
 , m_errorFit()
@@ -30,12 +28,16 @@ MagCalibration_t::MagCalibration_t()
 , m_matB()
 , m_vecA()
 , m_vecB()
-, m_rawcount(OVERSAMPLE_RATIO)
+, m_oversample_countdown(OVERSAMPLE_RATIO)
+, m_force_orientation_countdown(s_force_orientation_countdown_max)
+, m_discard_count(0)
+, m_new_wait_count(0)
 , m_accel()
 , m_mag()
 , m_gyro()
 , m_fusion()
 {
+	m_current_orientation.q0 = 1.0f;
 	m_cal_V[2] = 80.0f;  // initial guess
 	m_cal_invW[0][0] = 1.0f;
 	m_cal_invW[1][1] = 1.0f;
@@ -56,7 +58,6 @@ int MagCalibration_t::choose_discard_magcal()
 	int32_t dx, dy, dz;
 	float x, y, z;
 	uint64_t distsq, minsum=0xFFFFFFFFFFFFFFFFull;
-	static int runcount=0;
 	int i, j, minindex=0;
 	Point_t point;
 	float gaps, field, error, errormax;
@@ -69,7 +70,7 @@ int MagCalibration_t::choose_discard_magcal()
 		// always rate limit assumption-based data purging, but allow the
 		// rate to increase as the angular coverage improves.
 		if (gaps < 1.0f) gaps = 1.0f;
-		if (++runcount > (int)(gaps * 10.0f)) {
+		if (++m_discard_count > (int)(gaps * 10.0f)) {
 			j = MAGBUFFSIZE;
 			errormax = 0.0f;
 			for (i=0; i < MAGBUFFSIZE; i++) {
@@ -88,19 +89,21 @@ int MagCalibration_t::choose_discard_magcal()
 					j = i;
 				}
 			}
-			runcount = 0;
+			m_discard_count = 0;
 			if (j < MAGBUFFSIZE) {
 				//printf("worst error at %d\n", j);
 				return j;
 			}
 		}
 	} else {
-		runcount = 0;
+		m_discard_count = 0;
 	}
 	// When solid info isn't availabe, find 2 points closest to each other,
-	// and randomly discard one.  When we don't have good coverage, this
+	// and discard the first one.  When we don't have good coverage, this
 	// approach tends to add points into previously unmeasured areas while
 	// discarding info from areas with highly redundant info.
+	// NOTE bruceo: we used to randomly choose which point to discard. now
+	// we always choose the first to allow for consistent results with test data.
 	for (i=0; i < MAGBUFFSIZE; i++) {
 		for (j=i+1; j < MAGBUFFSIZE; j++) {
 			dx = m_aBpFast[0][i] - m_aBpFast[0][j];
@@ -111,7 +114,7 @@ int MagCalibration_t::choose_discard_magcal()
 			distsq += (int64_t)dz * (int64_t)dz;
 			if (distsq < minsum) {
 				minsum = distsq;
-				minindex = (random() & 1) ? i : j;
+				minindex = i;
 			}
 		}
 	}
@@ -140,7 +143,7 @@ void MagCalibration_t::add_magcal_data(const int16_t(&data)[9])
 	if (i >= MAGBUFFSIZE) {
 		i = choose_discard_magcal();
 		if (i < 0 || i >= MAGBUFFSIZE) {
-			i = random() % MAGBUFFSIZE;
+			i = 0;
 		}
 	}
 	// add it to the cal buffer
@@ -150,9 +153,8 @@ void MagCalibration_t::add_magcal_data(const int16_t(&data)[9])
 	m_aBpIsValid[i] = 1;
 }
 
-void MagCalibration_t::add_raw_data(const int16_t(&data)[9], Quaternion_t * pResult)
+void MagCalibration_t::add_raw_data(const int16_t(&data)[9])
 {
-	static int force_orientation_counter=0;
 	float x, y, z, ratio, magdiff;
 	Point_t point;
 
@@ -168,24 +170,24 @@ void MagCalibration_t::add_raw_data(const int16_t(&data)[9], Quaternion_t * pRes
 		//printf("magdiff = %.2f\n", magdiff);
 		if (magdiff > 0.8f) {
 			m_fusion.init();
-			m_rawcount = OVERSAMPLE_RATIO;
-			force_orientation_counter = 240;
+			m_oversample_countdown = OVERSAMPLE_RATIO;
+			m_force_orientation_countdown = s_force_orientation_countdown_max;
 		}
 	}
 
-	if (force_orientation_counter > 0) {
-		if (--force_orientation_counter == 0) {
+	if (m_force_orientation_countdown > 0) {
+		if (--m_force_orientation_countdown == 0) {
 			//printf("delayed forcible orientation reset\n");
 			m_fusion.init();
-			m_rawcount = OVERSAMPLE_RATIO;
+			m_oversample_countdown = OVERSAMPLE_RATIO;
 		}
 	}
 
-	if (m_rawcount >= OVERSAMPLE_RATIO) {
+	if (m_oversample_countdown >= OVERSAMPLE_RATIO) {
 		memset(&m_accel, 0, sizeof(m_accel));
 		memset(&m_mag, 0, sizeof(m_mag));
 		memset(&m_gyro, 0, sizeof(m_gyro));
-		m_rawcount = 0;
+		m_oversample_countdown = 0;
 	}
 	x = (float)data[0] * G_PER_COUNT;
 	y = (float)data[1] * G_PER_COUNT;
@@ -203,9 +205,9 @@ void MagCalibration_t::add_raw_data(const int16_t(&data)[9], Quaternion_t * pRes
 	m_gyro.Yp[0] += x;
 	m_gyro.Yp[1] += y;
 	m_gyro.Yp[2] += z;
-	m_gyro.YpFast[m_rawcount][0] = x;
-	m_gyro.YpFast[m_rawcount][1] = y;
-	m_gyro.YpFast[m_rawcount][2] = z;
+	m_gyro.YpFast[m_oversample_countdown][0] = x;
+	m_gyro.YpFast[m_oversample_countdown][1] = y;
+	m_gyro.YpFast[m_oversample_countdown][2] = z;
 
 	apply_calibration(data[6], data[7], data[8], &point);
 	m_mag.BcFast[0] = point.x;
@@ -215,8 +217,8 @@ void MagCalibration_t::add_raw_data(const int16_t(&data)[9], Quaternion_t * pRes
 	m_mag.Bc[1] += point.y;
 	m_mag.Bc[2] += point.z;
 
-	m_rawcount++;
-	if (m_rawcount >= OVERSAMPLE_RATIO) {
+	m_oversample_countdown++;
+	if (m_oversample_countdown >= OVERSAMPLE_RATIO) {
 		ratio = 1.0f / (float)OVERSAMPLE_RATIO;
 		m_accel.Gp[0] *= ratio;
 		m_accel.Gp[1] *= ratio;
@@ -228,7 +230,7 @@ void MagCalibration_t::add_raw_data(const int16_t(&data)[9], Quaternion_t * pRes
 		m_mag.Bc[1] *= ratio;
 		m_mag.Bc[2] *= ratio;
 		m_fusion.update(&m_accel, &m_mag, &m_gyro, m_isValid, m_cal_B);
-		m_fusion.read(pResult);
+		m_fusion.read(&m_current_orientation);
 	}
 }
 

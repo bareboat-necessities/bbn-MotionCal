@@ -39,53 +39,58 @@
 namespace libcalib
 {
 
-// kalman filter noise variances
-#define FQVA_9DOF_GBY_KALMAN 2E-6F              // accelerometer noise g^2 so 1.4mg RMS
-#define FQVM_9DOF_GBY_KALMAN 0.1F               // magnetometer noise uT^2
-#define FQVG_9DOF_GBY_KALMAN 0.3F               // gyro noise (deg/s)^2
-#define FQWB_9DOF_GBY_KALMAN 1E-9F              // gyro offset drift (deg/s)^2: 1E-9 implies 0.09deg/s max at 50Hz
-#define FQWA_9DOF_GBY_KALMAN 1E-4F              // linear acceleration drift g^2 (increase slows convergence to g but reduces sensitivity to shake)
-#define FQWD_9DOF_GBY_KALMAN 0.5F               // magnetic disturbance drift uT^2 (increase slows convergence to B but reduces sensitivity to magnet)
-// initialization of Qw covariance matrix
-#define FQWINITTHTH_9DOF_GBY_KALMAN 2000E-5F    // th_e * th_e terms
-#define FQWINITBB_9DOF_GBY_KALMAN 250E-3F       // b_e * b_e terms
-#define FQWINITTHB_9DOF_GBY_KALMAN 0.0F         // th_e * b_e terms
-#define FQWINITAA_9DOF_GBY_KALMAN 10E-5F        // a_e * a_e terms (increase slows convergence to g but reduces sensitivity to shake)
-#define FQWINITDD_9DOF_GBY_KALMAN 600E-3F       // d_e * d_e terms (increase slows convergence to B but reduces sensitivity to magnet)
-// linear acceleration and magnetic disturbance time constants
-#define FCA_9DOF_GBY_KALMAN 0.5F                // linear acceleration decay factor
-#define FCD_9DOF_GBY_KALMAN 0.5F                // magnetic disturbance decay factor
+namespace _9DOF_GBY_KALMAN
+{
+	// kalman filter noise variances
+	constexpr float FQVA = 2E-6F;				// accelerometer noise g^2 so 1.4mg RMS
+	constexpr float FQVM = 0.1F;				// magnetometer noise uT^2
+	constexpr float FQVG = 0.3F;				// gyro noise (deg/s)^2
+	constexpr float FQWB = 1E-9F;				// gyro offset drift (deg/s)^2: 1E-9 implies 0.09deg/s max at 50Hz
+	constexpr float FQWA = 1E-4F;				// linear acceleration drift g^2 (increase slows convergence to g but reduces sensitivity to shake)
+	constexpr float FQWD = 0.5F;				// magnetic disturbance drift uT^2 (increase slows convergence to B but reduces sensitivity to magnet)
+	// initialization of Qw covariance matrix
+	constexpr float FQWINITTHTH  = 2000E-5F;	// th_e * th_e terms
+	constexpr float FQWINITBB  = 250E-3F;		// b_e * b_e terms
+	constexpr float FQWINITTHB  = 0.0F;			// th_e * b_e terms
+	constexpr float FQWINITAA  = 10E-5F;		// a_e * a_e terms (increase slows convergence to g but reduces sensitivity to shake)
+	constexpr float FQWINITDD = 600E-3F;		// d_e * d_e terms (increase slows convergence to B but reduces sensitivity to magnet)
+	// linear acceleration and magnetic disturbance time constants
+	constexpr float FCA = 0.5F;					// linear acceleration decay factor
+	constexpr float FCD = 0.5F;					// magnetic disturbance decay factor
+} // namespace _9DOF_GBY_KALMAN
+using namespace _9DOF_GBY_KALMAN;
+
 // maximum geomagnetic inclination angle tracked by Kalman filter
-#define SINDELTAMAX 0.9063078F      // sin of max +ve geomagnetic inclination angle: here 65.0 deg
-#define COSDELTAMAX 0.4226183F      // cos of max +ve geomagnetic inclination angle: here 65.0 deg
-#define DEFAULTB 50.0F              // default geomagnetic field (uT)
-#define X 0                         // vector components
-#define Y 1
-#define Z 2
-#define FDEGTORAD 0.01745329251994F		// degrees to radians conversion = pi / 180
-#define FRADTODEG 57.2957795130823F		// radians to degrees conversion = 180 / pi
-#define ONEOVER48 0.02083333333F		// 1 / 48
-#define ONEOVER3840 0.0002604166667F	// 1 / 3840
+constexpr float SINDELTAMAX = 0.9063078F;		// sin of max +ve geomagnetic inclination angle: here 65.0 deg
+constexpr float COSDELTAMAX = 0.4226183F;		// cos of max +ve geomagnetic inclination angle: here 65.0 deg
+constexpr float DEFAULTB = 50.0F;				// default geomagnetic field (uT)
+constexpr int X = 0;							// vector components
+constexpr int Y = 1;
+constexpr int Z = 2;
+constexpr float FDEGTORAD = 0.01745329251994F;	// degrees to radians conversion = pi / 180
+constexpr float FRADTODEG = 57.2957795130823F;	// radians to degrees conversion = 180 / pi
+constexpr float ONEOVER48 = 0.02083333333F;		// 1 / 48
+constexpr float ONEOVER3840 = 0.0002604166667F;	// 1 / 3840
 
 
 
-static void fqAeq1(Quaternion_t *pqA);
-static void feCompassNED(float fR[][3], float *pfDelta, const float fBc[], const float fGp[]);
-static void fNEDAnglesDegFromRotationMatrix(float R[][3], float *pfPhiDeg,
+void fqAeq1(Quaternion_t *pqA);
+void feCompassNED(float fR[][3], float *pfDelta, const float fBc[], const float fGp[]);
+void fNEDAnglesDegFromRotationMatrix(float R[][3], float *pfPhiDeg,
 	float *pfTheDeg, float *pfPsiDeg, float *pfRhoDeg, float *pfChiDeg);
-static void fQuaternionFromRotationMatrix(float R[][3], Quaternion_t *pq);
-static void fQuaternionFromRotationVectorDeg(Quaternion_t *pq, const float rvecdeg[], float fscaling);
-static void fRotationMatrixFromQuaternion(float R[][3], const Quaternion_t *pq);
-static void fRotationVectorDegFromQuaternion(Quaternion_t *pq, float rvecdeg[]);
-static void qAeqAxB(Quaternion_t *pqA, const Quaternion_t *pqB);
-static void qAeqBxC(Quaternion_t *pqA, const Quaternion_t *pqB, const Quaternion_t *pqC);
-//static Quaternion_t qconjgAxB(const Quaternion_t *pqA, const Quaternion_t *pqB);
-static void fqAeqNormqA(Quaternion_t *pqA);
-static float fasin_deg(float x);
-static float facos_deg(float x);
-static float fatan_deg(float x);
-static float fatan2_deg(float y, float x);
-static float fatan_15deg(float x);
+void fQuaternionFromRotationMatrix(float R[][3], Quaternion_t *pq);
+void fQuaternionFromRotationVectorDeg(Quaternion_t *pq, const float rvecdeg[], float fscaling);
+void fRotationMatrixFromQuaternion(float R[][3], const Quaternion_t *pq);
+void fRotationVectorDegFromQuaternion(Quaternion_t *pq, float rvecdeg[]);
+void qAeqAxB(Quaternion_t *pqA, const Quaternion_t *pqB);
+void qAeqBxC(Quaternion_t *pqA, const Quaternion_t *pqB, const Quaternion_t *pqC);
+// Quaternion_t qconjgAxB(const Quaternion_t *pqA, const Quaternion_t *pqB);
+void fqAeqNormqA(Quaternion_t *pqA);
+float fasin_deg(float x);
+float facos_deg(float x);
+float fatan_deg(float x);
+float fatan2_deg(float y, float x);
+float fatan_15deg(float x);
 
 // function initializes the 9DOF Kalman filter
 void nxp::init()
@@ -99,9 +104,9 @@ void nxp::init()
 	m_Fastdeltat = 1.0F / (float)SENSORFS;
 	m_deltat = (float)OVERSAMPLE_RATIO * m_Fastdeltat;
 	m_deltatsq = m_deltat * m_deltat;
-	m_casq = FCA_9DOF_GBY_KALMAN * FCA_9DOF_GBY_KALMAN;
-	m_cdsq = FCD_9DOF_GBY_KALMAN * FCD_9DOF_GBY_KALMAN;
-	m_QwbplusQvG = FQWB_9DOF_GBY_KALMAN + FQVG_9DOF_GBY_KALMAN;
+	m_casq = FCA * FCA;
+	m_cdsq = FCD * FCD;
+	m_QwbplusQvG = FQWB + FQVG;
 
 	// initialize the fixed entries in the measurement matrix C
 	for (i = 0; i < 6; i++) {
@@ -127,8 +132,8 @@ void nxp::init()
 	m_mGl[Z] = 0.0F;
 
 	// initialize noise variances for Qv and Qw matrix updates
-	m_QvAA = FQVA_9DOF_GBY_KALMAN + FQWA_9DOF_GBY_KALMAN + FDEGTORAD * FDEGTORAD * m_deltatsq * (FQWB_9DOF_GBY_KALMAN + FQVG_9DOF_GBY_KALMAN);
-	m_QvMM = FQVM_9DOF_GBY_KALMAN + FQWD_9DOF_GBY_KALMAN + FDEGTORAD * FDEGTORAD * m_deltatsq * DEFAULTB * DEFAULTB * (FQWB_9DOF_GBY_KALMAN + FQVG_9DOF_GBY_KALMAN);
+	m_QvAA = FQVA + FQWA + FDEGTORAD * FDEGTORAD * m_deltatsq * (FQWB + FQVG);
+	m_QvMM = FQVM + FQWD + FDEGTORAD * FDEGTORAD * m_deltatsq * DEFAULTB * DEFAULTB * (FQWB + FQVG);
 
 	// initialize the 12x12 noise covariance matrix Qw of the a priori error vector xe-
 	// Qw is then recursively updated as P+ = (1 - K * C) * P- = (1 - K * C) * Qw  and Qw
@@ -142,15 +147,15 @@ void nxp::init()
 	// loop over non-zero values
 	for (i = 0; i < 3; i++) {
 		// theta_e * theta_e terms
-		m_Qw12x12[i][i] = FQWINITTHTH_9DOF_GBY_KALMAN;
+		m_Qw12x12[i][i] = FQWINITTHTH;
 		// b_e * b_e terms
-		m_Qw12x12[i + 3][i + 3] = FQWINITBB_9DOF_GBY_KALMAN;
+		m_Qw12x12[i + 3][i + 3] = FQWINITBB;
 		// th_e * b_e terms
-		m_Qw12x12[i][i + 3] = m_Qw12x12[i + 3][i] = FQWINITTHB_9DOF_GBY_KALMAN;
+		m_Qw12x12[i][i + 3] = m_Qw12x12[i + 3][i] = FQWINITTHB;
 		// a_e * a_e terms
-		m_Qw12x12[i + 6][i + 6] = FQWINITAA_9DOF_GBY_KALMAN;
+		m_Qw12x12[i + 6][i + 6] = FQWINITAA;
 		// d_e * d_e terms
-		m_Qw12x12[i + 9][i + 9] = FQWINITDD_9DOF_GBY_KALMAN;
+		m_Qw12x12[i + 9][i + 9] = FQWINITDD;
 	}
 
 	// clear the reset flag
@@ -264,7 +269,7 @@ void nxp::update(
 
 		// compute a priori acceleration (a-) (g, sensor frame) from decayed a
 		// posteriori estimate (g, sensor frame)
-		m_aSeMi[i] = FCA_9DOF_GBY_KALMAN * m_aSePl[i];
+		m_aSeMi[i] = FCA * m_aSePl[i];
 
 		// compute the a priori gravity error vector (accelerometer minus gyro estimates)
 		// (g, sensor frame)
@@ -707,16 +712,16 @@ void nxp::update(
 		m_Qw12x12[i][i] = m_PPlus12x12[i][i] + m_deltatsq * (m_PPlus12x12[i + 3][i + 3] + m_QwbplusQvG);
 
 		// Qw[b-b-] = Qw[3-5][3-5] = E[b-(b-)^T] = Q[b+b+] + Qwb * I
-		m_Qw12x12[i + 3][i + 3] = m_PPlus12x12[i + 3][i + 3] + FQWB_9DOF_GBY_KALMAN;
+		m_Qw12x12[i + 3][i + 3] = m_PPlus12x12[i + 3][i + 3] + FQWB;
 
 		// Qw[th-b-] = Qw[0-2][3-5] = E[th-(b-)^T] = -deltat * (Q[b+b+] + Qwb * I) = -deltat * Qw[b-b-]
 		m_Qw12x12[i][i + 3] = m_Qw12x12[i + 3][i] = -m_deltat * m_Qw12x12[i + 3][i + 3];
 
 		// Qw[a-a-] = Qw[6-8][6-8] = E[a-(a-)^T] = ca^2 * Q[a+a+] + Qwa * I
-		m_Qw12x12[i + 6][i + 6] = m_casq * m_PPlus12x12[i + 6][i + 6] + FQWA_9DOF_GBY_KALMAN;
+		m_Qw12x12[i + 6][i + 6] = m_casq * m_PPlus12x12[i + 6][i + 6] + FQWA;
 
 		// Qw[d-d-] = Qw[9-11][9-11] = E[d-(d-)^T] = cd^2 * Q[d+d+] + Qwd * I
-		m_Qw12x12[i + 9][i + 9] = m_cdsq * m_PPlus12x12[i + 9][i + 9] + FQWD_9DOF_GBY_KALMAN;
+		m_Qw12x12[i + 9][i + 9] = m_cdsq * m_PPlus12x12[i + 9][i + 9] + FQWD;
 	}
 }
 
@@ -732,9 +737,9 @@ void nxp::read(Quaternion_t* q)
 
 
 // compile time constants that are private to this file
-#define SMALLQ0 0.01F		// limit of quaternion scalar component requiring special algorithm
-#define CORRUPTQUAT 0.001F	// threshold for deciding rotation quaternion is corrupt
-#define SMALLMODULUS 0.01F	// limit where rounding errors may appear
+constexpr float SMALLQ0 = 0.01F;		// limit of quaternion scalar component requiring special algorithm
+constexpr float CORRUPTQUAT = 0.001F;	// threshold for deciding rotation quaternion is corrupt
+constexpr float SMALLMODULUS = 0.01F;	// limit where rounding errors may appear
 
 // Aerospace NED accelerometer 3DOF tilt function computing rotation matrix fR
 void f3DOFTiltNED(float fR[][3], float fGp[])
@@ -822,7 +827,7 @@ void f3DOFMagnetometerMatrixNED(float fR[][3], float fBc[])
 
 
 // NED: 6DOF e-Compass function computing rotation matrix fR
-static void feCompassNED(float fR[][3], float *pfDelta, const float fBc[], const float fGp[])
+void feCompassNED(float fR[][3], float *pfDelta, const float fBc[], const float fGp[])
 {
 	// local variables
 	float fmod[3];					// column moduli
@@ -882,7 +887,7 @@ static void feCompassNED(float fR[][3], float *pfDelta, const float fBc[], const
 
 
 // extract the NED angles in degrees from the NED rotation matrix
-static void fNEDAnglesDegFromRotationMatrix(float R[][3], float *pfPhiDeg,
+void fNEDAnglesDegFromRotationMatrix(float R[][3], float *pfPhiDeg,
 	float *pfTheDeg, float *pfPsiDeg, float *pfRhoDeg, float *pfChiDeg)
 {
 	// calculate the pitch angle -90.0 <= Theta <= 90.0 deg
@@ -929,7 +934,7 @@ static void fNEDAnglesDegFromRotationMatrix(float R[][3], float *pfPhiDeg,
 
 
 // computes normalized rotation quaternion from a rotation vector (deg)
-static void fQuaternionFromRotationVectorDeg(Quaternion_t *pq, const float rvecdeg[], float fscaling)
+void fQuaternionFromRotationVectorDeg(Quaternion_t *pq, const float rvecdeg[], float fscaling)
 {
 	float fetadeg;			// rotation angle (deg)
 	float fetarad;			// rotation angle (rad)
@@ -984,7 +989,7 @@ static void fQuaternionFromRotationVectorDeg(Quaternion_t *pq, const float rvecd
 }
 
 // compute the orientation quaternion from a 3x3 rotation matrix
-static void fQuaternionFromRotationMatrix(float R[][3], Quaternion_t *pq)
+void fQuaternionFromRotationMatrix(float R[][3], Quaternion_t *pq)
 {
 	float fq0sq;			// q0^2
 	float recip4q0;			// 1/4q0
@@ -1020,7 +1025,7 @@ static void fQuaternionFromRotationMatrix(float R[][3], Quaternion_t *pq)
 }
 
 // compute the rotation matrix from an orientation quaternion
-static void fRotationMatrixFromQuaternion(float R[][3], const Quaternion_t *pq)
+void fRotationMatrixFromQuaternion(float R[][3], const Quaternion_t *pq)
 {
 	float f2q;
 	float f2q0q0, f2q0q1, f2q0q2, f2q0q3;
@@ -1113,7 +1118,7 @@ void fRotationVectorDegFromRotationMatrix(float R[][3], float rvecdeg[])
 }
 
 // computes rotation vector (deg) from rotation quaternion
-static void fRotationVectorDegFromQuaternion(Quaternion_t *pq, float rvecdeg[])
+void fRotationVectorDegFromQuaternion(Quaternion_t *pq, float rvecdeg[])
 {
 	float fetarad;			// rotation angle (rad)
 	float fetadeg;			// rotation angle (deg)
@@ -1228,7 +1233,7 @@ void fLPFScalar(float *pfS, float *pfLPS, float flpf, int32_t loopcounter)
 #endif
 
 // function compute the quaternion product qA * qB
-static void qAeqBxC(Quaternion_t *pqA, const Quaternion_t *pqB, const Quaternion_t *pqC)
+void qAeqBxC(Quaternion_t *pqA, const Quaternion_t *pqB, const Quaternion_t *pqC)
 {
 	pqA->q0 = pqB->q0 * pqC->q0 - pqB->q1 * pqC->q1 - pqB->q2 * pqC->q2 - pqB->q3 * pqC->q3;
 	pqA->q1 = pqB->q0 * pqC->q1 + pqB->q1 * pqC->q0 + pqB->q2 * pqC->q3 - pqB->q3 * pqC->q2;
@@ -1237,7 +1242,7 @@ static void qAeqBxC(Quaternion_t *pqA, const Quaternion_t *pqB, const Quaternion
 }
 
 // function compute the quaternion product qA = qA * qB
-static void qAeqAxB(Quaternion_t *pqA, const Quaternion_t *pqB)
+void qAeqAxB(Quaternion_t *pqA, const Quaternion_t *pqB)
 {
 	Quaternion_t qProd;
 
@@ -1253,7 +1258,7 @@ static void qAeqAxB(Quaternion_t *pqA, const Quaternion_t *pqB)
 
 #if 0
 // function compute the quaternion product conjg(qA) * qB
-static Quaternion_t qconjgAxB(const Quaternion_t *pqA, const Quaternion_t *pqB)
+Quaternion_t qconjgAxB(const Quaternion_t *pqA, const Quaternion_t *pqB)
 {
 	Quaternion_t qProd;
 
@@ -1267,7 +1272,7 @@ static Quaternion_t qconjgAxB(const Quaternion_t *pqA, const Quaternion_t *pqB)
 #endif
 
 // function normalizes a rotation quaternion and ensures q0 is non-negative
-static void fqAeqNormqA(Quaternion_t *pqA)
+void fqAeqNormqA(Quaternion_t *pqA)
 {
 	float fNorm;					// quaternion Norm
 
@@ -1296,7 +1301,7 @@ static void fqAeqNormqA(Quaternion_t *pqA)
 }
 
 // set a quaternion to the unit quaternion
-static void fqAeq1(Quaternion_t *pqA)
+void fqAeq1(Quaternion_t *pqA)
 {
 	pqA->q0 = 1.0F;
 	pqA->q1 = pqA->q2 = pqA->q3 = 0.0F;
@@ -1307,7 +1312,7 @@ static void fqAeq1(Quaternion_t *pqA)
 // function returns an approximation to angle(deg)=asin(x) for x in the range -1 <= x <= 1
 // and returns -90 <= angle <= 90 deg
 // maximum error is 10.29E-6 deg
-static float fasin_deg(float x)
+float fasin_deg(float x)
 {
 	// for robustness, check for invalid argument
 	if (x >= 1.0F) return 90.0F;
@@ -1321,7 +1326,7 @@ static float fasin_deg(float x)
 // function returns an approximation to angle(deg)=acos(x) for x in the range -1 <= x <= 1
 // and returns 0 <= angle <= 180 deg
 // maximum error is 14.67E-6 deg
-static float facos_deg(float x)
+float facos_deg(float x)
 {
 	// for robustness, check for invalid arguments
 	if (x >= 1.0F) return 0.0F;
@@ -1336,15 +1341,15 @@ static float facos_deg(float x)
 
 // function returns angle in range -90 to 90 deg
 // maximum error is 9.84E-6 deg
-static float fatan_deg(float x)
+float fatan_deg(float x)
 {
 	float fangledeg;			// compute computed (deg)
 	int8_t ixisnegative;		// argument x is negative
 	int8_t ixexceeds1;			// argument x is greater than 1.0
 	int8_t ixmapped;			// argument in range tan(15 deg) to tan(45 deg)=1.0
 
-#define TAN15DEG 0.26794919243F		// tan(15 deg) = 2 - sqrt(3)
-#define TAN30DEG 0.57735026919F		// tan(30 deg) = 1/sqrt(3)
+constexpr float TAN15DEG = 0.26794919243F;		// tan(15 deg) = 2 - sqrt(3)
+constexpr float TAN30DEG = 0.57735026919F;		// tan(30 deg) = 1/sqrt(3)
 
 	// reset all flags
 	ixisnegative = ixexceeds1 = ixmapped = 0;
@@ -1384,7 +1389,7 @@ static float fatan_deg(float x)
 
 // function returns approximate atan2 angle in range -180 to 180 deg
 // maximum error is 14.58E-6 deg
-static float fatan2_deg(float y, float x)
+float fatan2_deg(float y, float x)
 {
 	// check for zero x to avoid division by zero
 	if (x == 0.0F) {
@@ -1408,13 +1413,13 @@ static float fatan2_deg(float y, float x)
 // approximation to inverse tan function (deg) for x in range
 // -tan(15 deg) to tan(15 deg) giving an output -15 deg <= angle <= 15 deg
 // using modified Pade[3/2] approximation
-static float fatan_15deg(float x)
+float fatan_15deg(float x)
 {
 	float x2;			// x^2
 
-#define PADE_A 96.644395816F	// theoretical Pade[3/2] value is 5/3*180/PI=95.49296
-#define PADE_B 25.086941612F	// theoretical Pade[3/2] value is 4/9*180/PI=25.46479
-#define PADE_C 1.6867633134F	// theoretical Pade[3/2] value is 5/3=1.66667
+constexpr float PADE_A = 96.644395816F;	// theoretical Pade[3/2] value is 5/3*180/PI=95.49296
+constexpr float PADE_B = 25.086941612F;	// theoretical Pade[3/2] value is 4/9*180/PI=25.46479
+constexpr float PADE_C = 1.6867633134F;	// theoretical Pade[3/2] value is 5/3=1.66667
 
 	// compute the approximation to the inverse tangent
 	// the function is anti-symmetric as required for positive and negative arguments
