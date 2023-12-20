@@ -37,6 +37,9 @@
 
 #include <math.h>
 
+namespace libcalib
+{
+
 constexpr float DEFAULTB = 50.0F;				// default geomagnetic field (uT)
 constexpr int X = 0;							// vector components
 constexpr int Y = 1;
@@ -52,8 +55,143 @@ constexpr float FITERRORAGINGSECS = 7200.0F;	// 2 hours: time for fit error to i
 
 
 
+MagCalibrator::MagCalibrator()
+	: m_cal_V()
+	, m_cal_invW()
+	, m_cal_B()
+	, m_errorFit()
+	, m_isValid()
+	, m_aBpFast()
+	, m_aBpIsValid()
+	, m_cBpIsValid()
+	, m_quality()
+	, m_errorFitAged()
+	, m_calNext_V()
+	, m_calNext_invW()
+	, m_calNext_B()
+	, m_errorFitNext()
+	, m_A()
+	, m_invA()
+	, m_matA()
+	, m_matB()
+	, m_vecA()
+	, m_vecB()
+	, m_discard_count(0)
+	, m_new_wait_count(0)
+{
+	m_cal_V[2] = 80.0f;  // initial guess
+	m_cal_invW[0][0] = 1.0f;
+	m_cal_invW[1][1] = 1.0f;
+	m_cal_invW[2][2] = 1.0f;
+	m_errorFit = 100.0f;
+	m_errorFitAged = 100.0f;
+	m_cal_B = 50.0f;
+}
+
+int MagCalibrator::choose_discard_magcal()
+{
+	int32_t rawx, rawy, rawz;
+	int32_t dx, dy, dz;
+	float x, y, z;
+	uint64_t distsq, minsum = 0xFFFFFFFFFFFFFFFFull;
+	int i, j, minindex = 0;
+	Point_t point;
+	float gaps, field, error, errormax;
+
+	// When enough data is collected (gaps error is low), assume we
+	// have a pretty good coverage and the field stregth is known.
+	gaps = m_quality.surface_gap_error();
+	if (gaps < 25.0f) {
+		// occasionally look for points farthest from average field strength
+		// always rate limit assumption-based data purging, but allow the
+		// rate to increase as the angular coverage improves.
+		if (gaps < 1.0f) gaps = 1.0f;
+		if (++m_discard_count > (int)(gaps * 10.0f)) {
+			j = MAGBUFFSIZE;
+			errormax = 0.0f;
+			for (i = 0; i < MAGBUFFSIZE; i++) {
+				rawx = m_aBpFast[0][i];
+				rawy = m_aBpFast[1][i];
+				rawz = m_aBpFast[2][i];
+				apply_calibration(rawx, rawy, rawz, &point);
+				x = point.x;
+				y = point.y;
+				z = point.z;
+				field = sqrtf(x * x + y * y + z * z);
+				// if m_cal_B is bad, things could go horribly wrong
+				error = fabsf(field - m_cal_B);
+				if (error > errormax) {
+					errormax = error;
+					j = i;
+				}
+			}
+			m_discard_count = 0;
+			if (j < MAGBUFFSIZE) {
+				//printf("worst error at %d\n", j);
+				return j;
+			}
+		}
+	}
+	else {
+		m_discard_count = 0;
+	}
+	// When solid info isn't availabe, find 2 points closest to each other,
+	// and discard the first one.  When we don't have good coverage, this
+	// approach tends to add points into previously unmeasured areas while
+	// discarding info from areas with highly redundant info.
+	// NOTE bruceo: we used to randomly choose which point to discard. now
+	// we always choose the first to allow for consistent results with test data.
+	for (i = 0; i < MAGBUFFSIZE; i++) {
+		for (j = i + 1; j < MAGBUFFSIZE; j++) {
+			dx = m_aBpFast[0][i] - m_aBpFast[0][j];
+			dy = m_aBpFast[1][i] - m_aBpFast[1][j];
+			dz = m_aBpFast[2][i] - m_aBpFast[2][j];
+			distsq = (int64_t)dx * (int64_t)dx;
+			distsq += (int64_t)dy * (int64_t)dy;
+			distsq += (int64_t)dz * (int64_t)dz;
+			if (distsq < minsum) {
+				minsum = distsq;
+				minindex = i;
+			}
+		}
+	}
+	return minindex;
+}
+
+
+void MagCalibrator::add_magcal_data(const int16_t(&data)[9])
+{
+	int i;
+
+	// first look for an unused caldata slot
+	for (i = 0; i < MAGBUFFSIZE; i++) {
+		if (!m_aBpIsValid[i]) break;
+	}
+	// If the buffer is full, we must choose which old data to discard.
+	// We must choose wisely!  Throwing away the wrong data could prevent
+	// collecting enough data distributed across the entire 3D angular
+	// range, preventing a decent cal from ever happening at all.  Making
+	// any assumption about good vs bad data is particularly risky,
+	// because being wrong could cause an unstable feedback loop where
+	// bad data leads to wrong decisions which leads to even worse data.
+	// But if done well, purging bad data has massive potential to
+	// improve results.  The trick is telling the good from the bad while
+	// still in the process of learning what's good...
+	if (i >= MAGBUFFSIZE) {
+		i = choose_discard_magcal();
+		if (i < 0 || i >= MAGBUFFSIZE) {
+			i = 0;
+		}
+	}
+	// add it to the cal buffer
+	m_aBpFast[0][i] = data[6];
+	m_aBpFast[1][i] = data[7];
+	m_aBpFast[2][i] = data[8];
+	m_aBpIsValid[i] = 1;
+}
+
 // run the magnetic calibration
-bool MagCalibration_t::get_new_calibration()
+bool MagCalibrator::get_new_calibration()
 {
 	int i, j;			// loop counters
 	int isolver;		// magnetic solver used
@@ -124,7 +262,7 @@ bool MagCalibration_t::get_new_calibration()
 
 
 // 4 element calibration using 4x4 matrix inverse
-void MagCalibration_t::UpdateCalibration4INV()
+void MagCalibrator::UpdateCalibration4INV()
 {
 	float fBp2;					// fBp[X]^2+fBp[Y]^2+fBp[Z]^2
 	float fSumBp4;				// sum of fBp2
@@ -292,7 +430,7 @@ void MagCalibration_t::UpdateCalibration4INV()
 
 
 // 7 element calibration using direct eigen-decomposition
-void MagCalibration_t::UpdateCalibration7EIG()
+void MagCalibrator::UpdateCalibration7EIG()
 {
 	float det;					// matrix determinant
 	float fscaling;				// set to FUTPERCOUNT * FMATRIXSCALING
@@ -425,7 +563,7 @@ void MagCalibration_t::UpdateCalibration7EIG()
 
 
 // 10 element calibration using direct eigen-decomposition
-void MagCalibration_t::UpdateCalibration10EIG()
+void MagCalibrator::UpdateCalibration10EIG()
 {
 	float det;					// matrix determinant
 	float fscaling;				// set to FUTPERCOUNT * FMATRIXSCALING
@@ -610,7 +748,16 @@ void MagCalibration_t::UpdateCalibration10EIG()
 	}
 }
 
+void MagCalibrator::apply_calibration(int16_t rawx, int16_t rawy, int16_t rawz, Point_t* out)
+{
+	float x, y, z;
 
+	x = ((float)rawx * UT_PER_COUNT) - m_cal_V[0];
+	y = ((float)rawy * UT_PER_COUNT) - m_cal_V[1];
+	z = ((float)rawz * UT_PER_COUNT) - m_cal_V[2];
+	out->x = x * m_cal_invW[0][0] + y * m_cal_invW[0][1] + z * m_cal_invW[0][2];
+	out->y = x * m_cal_invW[1][0] + y * m_cal_invW[1][1] + z * m_cal_invW[1][2];
+	out->z = x * m_cal_invW[2][0] + y * m_cal_invW[2][1] + z * m_cal_invW[2][2];
+}
 
-
-
+} // namespace libcalib

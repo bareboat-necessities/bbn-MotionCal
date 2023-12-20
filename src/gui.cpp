@@ -3,7 +3,7 @@
 
 #include "image2wx/image2wx.h"
 
-MagCalibration_t magcal;
+libcalib::Calibrator calib;
 
 
 wxString port_name;
@@ -244,7 +244,7 @@ MyFrame::MyFrame(wxWindow *parent, wxWindowID id, const wxString &title,
 	Raise();
 
 	m_canvas->InitGL();
-	magcal.reset();
+	calib.reset();
 	//open_port(PORT);
 	m_timer = new wxTimer(this, ID_TIMER);
 	m_timer->Start(14, wxTIMER_CONTINUOUS);
@@ -267,10 +267,10 @@ void MyFrame::OnTimer(wxTimerEvent &event)
 			firstrun = 0;
 		}
 		m_canvas->Refresh();
-		gaps = magcal.m_quality.surface_gap_error();
-		variance = magcal.m_quality.magnitude_variance_error();
-		wobble = magcal.m_quality.wobble_error();
-		fiterror = magcal.m_errorFit;
+		gaps = calib.quality_surface_gap_error();
+		variance = calib.quality_magnitude_variance_error();
+		wobble = calib.quality_wobble_error();
+		fiterror = calib.quality_spherical_fit_error();
 		if (gaps < 15.0f && variance < 4.5f && wobble < 4.0f && fiterror < 5.0f) {
 			if (!m_sendcal_menu->IsEnabled(ID_SENDCAL_MENU) || !m_button_sendcal->IsEnabled()) {
 				m_sendcal_menu->Enable(ID_SENDCAL_MENU, true);
@@ -284,25 +284,25 @@ void MyFrame::OnTimer(wxTimerEvent &event)
 				m_confirm_icon->SetBitmap(MyBitmap("checkemptygray.png"));
 			}
 		}
-		snprintf(buf, sizeof(buf), "%.1f%%", magcal.m_quality.surface_gap_error());
+		snprintf(buf, sizeof(buf), "%.1f%%", calib.quality_surface_gap_error());
 		m_err_coverage->SetLabelText(buf);
-		snprintf(buf, sizeof(buf), "%.1f%%", magcal.m_quality.magnitude_variance_error());
+		snprintf(buf, sizeof(buf), "%.1f%%", calib.quality_magnitude_variance_error());
 		m_err_variance->SetLabelText(buf);
-		snprintf(buf, sizeof(buf), "%.1f%%", magcal.m_quality.wobble_error());
+		snprintf(buf, sizeof(buf), "%.1f%%", calib.quality_wobble_error());
 		m_err_wobble->SetLabelText(buf);
-		snprintf(buf, sizeof(buf), "%.1f%%", magcal.m_errorFit);
+		snprintf(buf, sizeof(buf), "%.1f%%", calib.quality_spherical_fit_error());
 		m_err_fit->SetLabelText(buf);
 		for (i=0; i < 3; i++) {
-			snprintf(buf, sizeof(buf), "%.2f", magcal.m_cal_V[i]);
+			snprintf(buf, sizeof(buf), "%.2f", calib.m_magcal.m_cal_V[i]);
 			m_mag_offset[i]->SetLabelText(buf);
 		}
 		for (i=0; i < 3; i++) {
 			for (j=0; j < 3; j++) {
-				snprintf(buf, sizeof(buf), "%+.3f", magcal.m_cal_invW[i][j]);
+				snprintf(buf, sizeof(buf), "%+.3f", calib.m_magcal.m_cal_invW[i][j]);
 				m_mag_mapping[i][j]->SetLabelText(buf);
 			}
 		}
-		snprintf(buf, sizeof(buf), "%.2f", magcal.m_cal_B);
+		snprintf(buf, sizeof(buf), "%.2f", calib.m_magcal.m_cal_B);
 		m_mag_field->SetLabelText(buf);
 		for (i=0; i < 3; i++) {
 			snprintf(buf, sizeof(buf), "%.3f", 0.0f); // TODO...
@@ -334,20 +334,22 @@ void MyFrame::OnTimer(wxTimerEvent &event)
 void MyFrame::OnClear(wxCommandEvent &event)
 {
 	//printf("OnClear\n");
-	magcal.reset();
+	calib.reset();
 }
 
 void MyFrame::OnSendCal(wxCommandEvent &event)
 {
-	/*printf("OnSendCal\n");
-	printf("Magnetic Calibration:   (%.1f%% fit error)\n", magcal.m_errorFit);
-	printf("   %7.2f   %6.3f %6.3f %6.3f\n",
-		magcal.m_cal_V[0], magcal.m_cal_invW[0][0], magcal.m_cal_invW[0][1], magcal.m_cal_invW[0][2]);
-	printf("   %7.2f   %6.3f %6.3f %6.3f\n",
-		magcal.m_cal_V[1], magcal.m_cal_invW[1][0], magcal.m_cal_invW[1][1], magcal.m_cal_invW[1][2]);
-	printf("   %7.2f   %6.3f %6.3f %6.3f\n",
-		magcal.m_cal_V[2], magcal.m_cal_invW[2][0], magcal.m_cal_invW[2][1], magcal.m_cal_invW[2][2]);
-	*/
+	//printf("OnSendCal\n");
+	//const auto & V = calib.m_magcal.m_cal_V;
+	//const auto & invW = calib.m_magcal.m_cal_invW;
+	//printf("Magnetic Calibration:   (%.1f%% fit error)\n", calib.quality_spherical_fit_error());
+	//printf("   %7.2f   %6.3f %6.3f %6.3f\n",
+	//	V[0], invW[0][0], invW[0][1], invW[0][2]);
+	//printf("   %7.2f   %6.3f %6.3f %6.3f\n",
+	//	V[1], invW[1][0], invW[1][1], invW[1][2]);
+	//printf("   %7.2f   %6.3f %6.3f %6.3f\n",
+	//	V[2], invW[2][0], invW[2][1], invW[2][2]);
+	
 	m_confirm_icon->SetBitmap(MyBitmap("checkempty.png"));
 	send_calibration();
 }
@@ -405,7 +407,7 @@ void MyFrame::OnPortMenu(wxCommandEvent &event)
 	m_port_list->Append(port_name);
 	m_port_list->SetSelection(0);
         if (id == 9000) return;
-	magcal.reset();
+	calib.reset();
 	open_port((const char *)name);
 	m_button_clear->Enable(true);
 }
@@ -419,7 +421,7 @@ void MyFrame::OnPortList(wxCommandEvent& event)
 	close_port();
 	port_name = name;
 	if (name == "(none)") return;
-	magcal.reset();
+	calib.reset();
 	open_port((const char *)name);
 	m_button_clear->Enable(true);
 }

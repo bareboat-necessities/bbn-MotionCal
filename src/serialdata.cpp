@@ -112,7 +112,7 @@ static int ascii_parse(const unsigned char *data, int len)
 				if (((int16_t)ascii_num) != ascii_num) goto fail;
 				if (ascii_raw_data_count != 8) goto fail;
 				ascii_raw_data[ascii_raw_data_count] = ascii_num;
-				magcal.add_raw_data(ascii_raw_data);
+				calib.add_raw_data(ascii_raw_data);
 				ret = 1;
 				ascii_raw_data_count = 0;
 				ascii_num = 0;
@@ -574,6 +574,10 @@ static uint8_t* copy_lsb_first(uint8_t* dst, float f)
 
 int send_calibration()
 {
+	const auto & V = calib.m_magcal.m_cal_V;
+	const auto & invW = calib.m_magcal.m_cal_invW;
+	const auto & B = calib.m_magcal.m_cal_B;
+
 	uint8_t* p, buf[68];
 	uint16_t crc;
 	int i;
@@ -590,26 +594,26 @@ int send_calibration()
 		cal_data_sent[3 + i] = 0.0f;
 	}
 	for (i = 0; i < 3; i++) {
-		p = copy_lsb_first(p, magcal.m_cal_V[i]); // 12 bytes offset/hardiron
-		cal_data_sent[6 + i] = magcal.m_cal_V[i];
+		p = copy_lsb_first(p, V[i]); // 12 bytes offset/hardiron
+		cal_data_sent[6 + i] = V[i];
 	}
-	p = copy_lsb_first(p, magcal.m_cal_B); // field strength
-	p = copy_lsb_first(p, magcal.m_cal_invW[0][0]); //10
-	p = copy_lsb_first(p, magcal.m_cal_invW[1][1]); //11
-	p = copy_lsb_first(p, magcal.m_cal_invW[2][2]); //12
-	p = copy_lsb_first(p, magcal.m_cal_invW[0][1]); //13
-	p = copy_lsb_first(p, magcal.m_cal_invW[0][2]); //14
-	p = copy_lsb_first(p, magcal.m_cal_invW[1][2]); //15
-	cal_data_sent[9] = magcal.m_cal_B;
-	cal_data_sent[10] = magcal.m_cal_invW[0][0];
-	cal_data_sent[11] = magcal.m_cal_invW[0][1];
-	cal_data_sent[12] = magcal.m_cal_invW[0][2];
-	cal_data_sent[13] = magcal.m_cal_invW[1][0];
-	cal_data_sent[14] = magcal.m_cal_invW[1][1];
-	cal_data_sent[15] = magcal.m_cal_invW[1][2];
-	cal_data_sent[16] = magcal.m_cal_invW[2][0];
-	cal_data_sent[17] = magcal.m_cal_invW[2][1];
-	cal_data_sent[18] = magcal.m_cal_invW[2][2];
+	p = copy_lsb_first(p, B); // field strength
+	p = copy_lsb_first(p, invW[0][0]); //10
+	p = copy_lsb_first(p, invW[1][1]); //11
+	p = copy_lsb_first(p, invW[2][2]); //12
+	p = copy_lsb_first(p, invW[0][1]); //13
+	p = copy_lsb_first(p, invW[0][2]); //14
+	p = copy_lsb_first(p, invW[1][2]); //15
+	cal_data_sent[9] = B;
+	cal_data_sent[10] = invW[0][0];
+	cal_data_sent[11] = invW[0][1];
+	cal_data_sent[12] = invW[0][2];
+	cal_data_sent[13] = invW[1][0];
+	cal_data_sent[14] = invW[1][1];
+	cal_data_sent[15] = invW[1][2];
+	cal_data_sent[16] = invW[2][0];
+	cal_data_sent[17] = invW[2][1];
+	cal_data_sent[18] = invW[2][2];
 	cal_confirm_needed = 3;
 	crc = 0xFFFF;
 	for (i = 0; i < 66; i++) {

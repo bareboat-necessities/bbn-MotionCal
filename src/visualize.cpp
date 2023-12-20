@@ -1,6 +1,6 @@
 #include "imuread.h"
 
-static void quad_to_rotation(const Quaternion_t *quat, float *rmatrix)
+static void quad_to_rotation(const libcalib::Quaternion_t *quat, float (& rmatrix)[9])
 {
 	float qw = quat->q0;
 	float qx = quat->q1;
@@ -17,7 +17,7 @@ static void quad_to_rotation(const Quaternion_t *quat, float *rmatrix)
 	rmatrix[8] = 1.0f  - 2.0f * qx * qx - 2.0f * qy * qy;
 }
 
-static void rotate(const Point_t *in, Point_t *out, const float *rmatrix)
+static void rotate(const libcalib::Point_t *in, libcalib::Point_t *out, const float (& rmatrix)[9])
 {
 	out->x = in->x * rmatrix[0] + in->y * rmatrix[1] + in->z * rmatrix[2];
 	out->y = in->x * rmatrix[3] + in->y * rmatrix[4] + in->z * rmatrix[5];
@@ -43,10 +43,10 @@ void display_callback()
 	float xscale, yscale, zscale;
 	float xoff, yoff, zoff;
 	float rotation[9];
-	Point_t point, draw;
-	Quaternion_t orientation;
+	libcalib::Point_t point, draw;
+	libcalib::Quaternion_t orientation;
 
-	magcal.m_quality.reset();
+	calib.quality_reset();
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	glColor3f(1, 0, 0);	// set current color to red
 	glLoadIdentity();
@@ -64,7 +64,7 @@ void display_callback()
 
 	//if (hard_iron.valid) {
 	if (1) {
-		orientation = magcal.m_current_orientation;
+		orientation = calib.m_current_orientation;
 		// TODO: this almost but doesn't perfectly seems to get the
 		//  real & screen axes in sync....
 		if (invert_q0) orientation.q0 *= -1.0f;
@@ -83,14 +83,17 @@ void display_callback()
 		//rotation[7] *= -1.0f;
 		//rotation[8] *= -1.0f;
 
-		for (i=0; i < MAGBUFFSIZE; i++) {
-			if (magcal.m_aBpIsValid[i]) {
-				magcal.apply_calibration(magcal.m_aBpFast[0][i], magcal.m_aBpFast[1][i],
-					magcal.m_aBpFast[2][i], &point);
+		for (i=0; i < libcalib::MAGBUFFSIZE; i++) {
+			if (calib.m_magcal.m_aBpIsValid[i]) {
+				calib.m_magcal.apply_calibration(
+					calib.m_magcal.m_aBpFast[0][i],
+					calib.m_magcal.m_aBpFast[1][i],
+					calib.m_magcal.m_aBpFast[2][i],
+					&point);
 				//point.x *= -1.0f;
 				//point.y *= -1.0f;
 				//point.z *= -1.0f;
-				magcal.m_quality.update(&point);
+				calib.quality_update(&point);
 				rotate(&point, &draw, rotation);
 				glPushMatrix();
 				if (invert_x) draw.x *= -1.0f;

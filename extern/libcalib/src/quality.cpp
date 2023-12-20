@@ -136,8 +136,8 @@ void quality::update(const Point_t *point)
 	z = point->z;
 	// NOTE bruceo: uh, what if count is >= MAGBUFFSIZE?
 	//	seems like we could be walking off the end of the array here.
-	// ah, ok. it appears that display_callback() calls quality_reset()
-	//	before feeding all the magcal.m_aBpFast calibrated points to this
+	// ah, ok. it appears that display_callback() calls quality::reset()
+	//	before feeding all the MagCalibrator::m_aBpFast calibrated points to this
 	//	routine. so we are guaranteed to never get more than MAGBUFFSIZE
 	//	points.
 	m_magnitude[m_count] = sqrtf(x * x + y * y + z * z);

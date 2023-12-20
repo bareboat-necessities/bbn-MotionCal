@@ -5,20 +5,22 @@
 #include "libcalib_mahony.h"
 #include "libcalib_quality.h"
 
+namespace libcalib
+{
+
 // magnetic calibration & buffer structure
 
-class MagCalibration_t
+class MagCalibrator
 {
 public:
 
-    MagCalibration_t();
+    MagCalibrator();
 
-	void reset();
-	void add_raw_data(const int16_t (& data)[9]);
-	void apply_calibration(int16_t rawx, int16_t rawy, int16_t rawz, Point_t* out);
+	void reset()
+	        { *this = MagCalibrator(); }
+	void add_magcal_data(const int16_t(&data)[9]);
 	bool get_new_calibration();
-
-	Quaternion_t m_current_orientation;
+	void apply_calibration(int16_t rawx, int16_t rawy, int16_t rawz, Point_t* out);
 
     float m_cal_V[3];                  // current hard iron offset x, y, z, (uT)
     float m_cal_invW[3][3];            // current inverse soft iron matrix
@@ -29,11 +31,10 @@ public:
     int8_t  m_aBpIsValid[MAGBUFFSIZE];        // 1=has data, 0=empty slot
     int16_t m_cBpIsValid;           // number of magnetometer readings
 
-	libcalib::quality m_quality;
 private:
+    friend class Calibrator;
 
 	int choose_discard_magcal();
-	void add_magcal_data(const int16_t(&data)[9]);
 
 	void UpdateCalibration4INV();
 	void UpdateCalibration7EIG();
@@ -51,17 +52,12 @@ private:
     float m_vecA[10];              // scratch 10x1 vector used by calibration algorithms
     float m_vecB[4];               // scratch 4x1 vector used by calibration algorithms
 
-	int m_oversample_countdown;         // countdown of oversampling in add_raw_data()
-	int m_force_orientation_countdown;  // countdown to reseting fusion in add_raw_data()
 	int m_discard_count;                // choose_discard_magcal() counter for choosing field strength discards
     int m_new_wait_count;               // number of times get_new_calibration() had been called without doing any work
 
-	AccelSensor_t m_accel;
-	MagSensor_t   m_mag;
-	GyroSensor_t  m_gyro;
-
-    libcalib::nxp m_fusion;
+	libcalib::quality m_quality;
 
     static const int s_new_wait_count_max = 20; // in get_new_calibration() only do work after this many calls
-    static const int s_force_orientation_countdown_max = 240;
 };
+
+} // namespace libcalib

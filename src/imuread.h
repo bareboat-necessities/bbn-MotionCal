@@ -31,7 +31,7 @@
 
 #include "libcalib.h"
 
-extern MagCalibration_t magcal;
+extern libcalib::Calibrator calib;
 
 #if defined(LINUX)
   #define PORT "/dev/ttyACM0"
