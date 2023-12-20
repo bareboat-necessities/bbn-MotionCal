@@ -5,6 +5,7 @@ add_library(libcalib STATIC)
 
 target_sources(libcalib
     PRIVATE
+		include/libcalib.h
 		include/libcalib_common.h
 		include/libcalib_magcal.h
 		include/libcalib_mahony.h
