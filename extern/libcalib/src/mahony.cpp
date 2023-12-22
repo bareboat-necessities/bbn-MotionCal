@@ -78,16 +78,12 @@ void mahony::read(Quaternion_t* q)
 //----------------------------------------------------------------------------------------------
 // AHRS algorithm update
 
-void mahony::init(bool first)
+void mahony::init()
 {
 	m_twoKp = twoKpDef;	// 2 * proportional gain (Kp)
 	m_twoKi = twoKiDef;	// 2 * integral gain (Ki)
-	if (first) {
-		m_q0 = 1.0f;
-		m_q1 = 0.0f;	// TODO: set a flag to immediately capture
-		m_q2 = 0.0f;	// magnetic orientation on next update
-		m_q3 = 0.0f;
-	}
+	// TODO: set a flag to immediately capture
+	// magnetic orientation on next update
 	m_reset_next_update = true;
 	m_integralFBx = 0.0f;
 	m_integralFBy = 0.0f;

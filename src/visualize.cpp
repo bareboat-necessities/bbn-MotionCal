@@ -29,13 +29,7 @@ static void rotate(const libcalib::Point_t *in, libcalib::Point_t *out, const fl
 static GLuint spherelist;
 static GLuint spherelowreslist;
 
-int invert_q0=0;
-int invert_q1=0;
-int invert_q2=0;
 int invert_q3=1;
-int invert_x=0;
-int invert_y=0;
-int invert_z=0;
 
 void display_callback()
 {
@@ -43,7 +37,7 @@ void display_callback()
 	float xscale, yscale, zscale;
 	float xoff, yoff, zoff;
 	float rotation[9];
-	libcalib::Point_t point, draw;
+	libcalib::Point_t Bc, draw;
 	libcalib::Quaternion_t orientation;
 
 	calib.quality_reset();
@@ -67,38 +61,17 @@ void display_callback()
 		orientation = calib.m_current_orientation;
 		// TODO: this almost but doesn't perfectly seems to get the
 		//  real & screen axes in sync....
-		if (invert_q0) orientation.q0 *= -1.0f;
-		if (invert_q1) orientation.q1 *= -1.0f;
-		if (invert_q2) orientation.q2 *= -1.0f;
-		if (invert_q3) orientation.q3 *= -1.0f;
+		orientation.q3 *= -1.0f;
 		quad_to_rotation(&orientation, rotation);
-
-		//rotation[0] *= -1.0f;
-		//rotation[1] *= -1.0f;
-		//rotation[2] *= -1.0f;
-		//rotation[3] *= -1.0f;
-		//rotation[4] *= -1.0f;
-		//rotation[5] *= -1.0f;
-		//rotation[6] *= -1.0f;
-		//rotation[7] *= -1.0f;
-		//rotation[8] *= -1.0f;
 
 		for (i=0; i < libcalib::MAGBUFFSIZE; i++) {
 			if (calib.m_magcal.m_aBpIsValid[i]) {
 				calib.m_magcal.apply_calibration(
-					calib.m_magcal.m_aBpFast[0][i],
-					calib.m_magcal.m_aBpFast[1][i],
-					calib.m_magcal.m_aBpFast[2][i],
-					&point);
-				//point.x *= -1.0f;
-				//point.y *= -1.0f;
-				//point.z *= -1.0f;
-				calib.quality_update(&point);
-				rotate(&point, &draw, rotation);
+					calib.m_magcal.m_aBpFast[i],
+					&Bc);
+				calib.quality_update(&Bc);
+				rotate(&Bc, &draw, rotation);
 				glPushMatrix();
-				if (invert_x) draw.x *= -1.0f;
-				if (invert_y) draw.y *= -1.0f;
-				if (invert_z) draw.z *= -1.0f;
 				glTranslatef(
 					draw.x * xscale + xoff,
 					draw.z * yscale + yoff,

@@ -35,6 +35,7 @@
 #include "libcalib.h"
 #include "matrix.h"
 
+#include <float.h>
 #include <math.h>
 
 namespace libcalib
@@ -90,12 +91,12 @@ MagCalibrator::MagCalibrator()
 
 int MagCalibrator::choose_discard_magcal()
 {
-	int32_t rawx, rawy, rawz;
-	int32_t dx, dy, dz;
+	float dx, dy, dz;
 	float x, y, z;
-	uint64_t distsq, minsum = 0xFFFFFFFFFFFFFFFFull;
+	float distsq;
+	float minsum = FLT_MAX;
 	int i, j, minindex = 0;
-	Point_t point;
+	Point_t Bc;
 	float gaps, field, error, errormax;
 
 	// When enough data is collected (gaps error is low), assume we
@@ -110,13 +111,10 @@ int MagCalibrator::choose_discard_magcal()
 			j = MAGBUFFSIZE;
 			errormax = 0.0f;
 			for (i = 0; i < MAGBUFFSIZE; i++) {
-				rawx = m_aBpFast[0][i];
-				rawy = m_aBpFast[1][i];
-				rawz = m_aBpFast[2][i];
-				apply_calibration(rawx, rawy, rawz, &point);
-				x = point.x;
-				y = point.y;
-				z = point.z;
+				apply_calibration(m_aBpFast[i], &Bc);
+				x = Bc.x;
+				y = Bc.y;
+				z = Bc.z;
 				field = sqrtf(x * x + y * y + z * z);
 				// if m_cal_B is bad, things could go horribly wrong
 				error = fabsf(field - m_cal_B);
@@ -143,12 +141,10 @@ int MagCalibrator::choose_discard_magcal()
 	// we always choose the first to allow for consistent results with test data.
 	for (i = 0; i < MAGBUFFSIZE; i++) {
 		for (j = i + 1; j < MAGBUFFSIZE; j++) {
-			dx = m_aBpFast[0][i] - m_aBpFast[0][j];
-			dy = m_aBpFast[1][i] - m_aBpFast[1][j];
-			dz = m_aBpFast[2][i] - m_aBpFast[2][j];
-			distsq = (int64_t)dx * (int64_t)dx;
-			distsq += (int64_t)dy * (int64_t)dy;
-			distsq += (int64_t)dz * (int64_t)dz;
+			dx = m_aBpFast[i].x - m_aBpFast[j].x;
+			dy = m_aBpFast[i].y - m_aBpFast[j].y;
+			dz = m_aBpFast[i].z - m_aBpFast[j].z;
+			distsq = (dx * dx) + (dy * dy) + (dz * dz);
 			if (distsq < minsum) {
 				minsum = distsq;
 				minindex = i;
@@ -159,7 +155,7 @@ int MagCalibrator::choose_discard_magcal()
 }
 
 
-void MagCalibrator::add_magcal_data(const int16_t(&data)[9])
+void MagCalibrator::add_magcal_data(const Point_t & BpFast)
 {
 	int i;
 
@@ -184,9 +180,7 @@ void MagCalibrator::add_magcal_data(const int16_t(&data)[9])
 		}
 	}
 	// add it to the cal buffer
-	m_aBpFast[0][i] = data[6];
-	m_aBpFast[1][i] = data[7];
-	m_aBpFast[2][i] = data[8];
+	m_aBpFast[i] = BpFast;
 	m_aBpIsValid[i] = 1;
 }
 
@@ -268,7 +262,6 @@ void MagCalibrator::UpdateCalibration4INV()
 	float fSumBp4;				// sum of fBp2
 	float fscaling;				// set to FUTPERCOUNT * FMATRIXSCALING
 	float fE;					// error function = r^T.r
-	int16_t iOffset[3];			// offset to remove large DC hard iron bias in matrix
 	int16_t iCount;				// number of measurements counted
 	int i, j, k;				// loop counters
 
@@ -279,7 +272,7 @@ void MagCalibrator::UpdateCalibration4INV()
 	int8_t iPivot[4];
 
 	// compute fscaling to reduce multiplications later
-	fscaling = UT_PER_COUNT / DEFAULTB;
+	fscaling = 1.0F / DEFAULTB;
 
 	// the trial inverse soft iron matrix m_cal_invW always equals
 	// the identity matrix for 4 element calibration
@@ -296,7 +289,7 @@ void MagCalibrator::UpdateCalibration4INV()
 	}
 
 	// the offsets are guaranteed to be set from the first element but to avoid compiler error
-	iOffset[X] = iOffset[Y] = iOffset[Z] = 0;
+	Point_t BpOffset;
 
 	// use from MINEQUATIONS up to MAXEQUATIONS entries from magnetic buffer to compute matrices
 	iCount = 0;
@@ -304,15 +297,12 @@ void MagCalibrator::UpdateCalibration4INV()
 		if (m_aBpIsValid[j]) {
 			// use first valid magnetic buffer entry as estimate (in counts) for offset
 			if (iCount == 0) {
-				for (k = X; k <= Z; k++) {
-					iOffset[k] = m_aBpFast[k][j];
-				}
+				BpOffset = m_aBpFast[j];
 			}
 
 			// store scaled and offset fBp[XYZ] in m_vecA[0-2] and fBp[XYZ]^2 in m_vecA[3-5]
 			for (k = X; k <= Z; k++) {
-				m_vecA[k] = (float)((int32_t)m_aBpFast[k][j]
-					- (int32_t)iOffset[k]) * fscaling;
+				m_vecA[k] = (m_aBpFast[j][k] - BpOffset[k]) * fscaling;
 				m_vecA[k + 3] = m_vecA[k] * m_vecA[k];
 			}
 
@@ -412,8 +402,7 @@ void MagCalibrator::UpdateCalibration4INV()
 
 	// correct the hard iron estimate for FMATRIXSCALING and the offsets applied (result in uT)
 	for (k = X; k <= Z; k++) {
-		m_calNext_V[k] = m_calNext_V[k] * DEFAULTB
-			+ (float)iOffset[k] * UT_PER_COUNT;
+		m_calNext_V[k] = m_calNext_V[k] * DEFAULTB + BpOffset[k];
 	}
 
 	// correct the geomagnetic field strength B to correct scaling (result in uT)
@@ -435,15 +424,14 @@ void MagCalibrator::UpdateCalibration7EIG()
 	float det;					// matrix determinant
 	float fscaling;				// set to FUTPERCOUNT * FMATRIXSCALING
 	float ftmp;					// scratch variable
-	int16_t iOffset[3];			// offset to remove large DC hard iron bias
 	int16_t iCount;				// number of measurements counted
 	int i, j, k, m, n;			// loop counters
 
 	// compute fscaling to reduce multiplications later
-	fscaling = UT_PER_COUNT / DEFAULTB;
+	fscaling = 1.0F / DEFAULTB;
 
 	// the offsets are guaranteed to be set from the first element but to avoid compiler error
-	iOffset[X] = iOffset[Y] = iOffset[Z] = 0;
+	Point_t BpOffset;
 
 	// zero the on and above diagonal elements of the 7x7 symmetric measurement matrix m_matA
 	for (m = 0; m < 7; m++) {
@@ -458,15 +446,12 @@ void MagCalibrator::UpdateCalibration7EIG()
 		if (m_aBpIsValid[j]) {
 			// use first valid magnetic buffer entry as offset estimate (bit counts)
 			if (iCount == 0) {
-				for (k = X; k <= Z; k++) {
-					iOffset[k] = m_aBpFast[k][j];
-				}
+				BpOffset = m_aBpFast[j];
 			}
 
 			// apply the offset and scaling and store in m_vecA
 			for (k = X; k <= Z; k++) {
-				m_vecA[k + 3] = (float)((int32_t)m_aBpFast[k][j]
-					- (int32_t)iOffset[k]) * fscaling;
+				m_vecA[k + 3] = (m_aBpFast[j][k] - BpOffset[k]) * fscaling;
 				m_vecA[k] = m_vecA[k + 3] * m_vecA[k + 3];
 			}
 
@@ -554,7 +539,7 @@ void MagCalibrator::UpdateCalibration7EIG()
 	f3x3matrixAeqI(m_calNext_invW);
 	for (k = X; k <= Z; k++) {
 		m_calNext_invW[k][k] = sqrtf(fabs(m_A[k][k]));
-		m_calNext_V[k] = m_calNext_V[k] * DEFAULTB + (float)iOffset[k] * UT_PER_COUNT;
+		m_calNext_V[k] = m_calNext_V[k] * DEFAULTB + BpOffset[k];
 	}
 }
 
@@ -568,15 +553,14 @@ void MagCalibrator::UpdateCalibration10EIG()
 	float det;					// matrix determinant
 	float fscaling;				// set to FUTPERCOUNT * FMATRIXSCALING
 	float ftmp;					// scratch variable
-	int16_t iOffset[3];			// offset to remove large DC hard iron bias in matrix
 	int16_t iCount;				// number of measurements counted
 	int i, j, k, m, n;			// loop counters
 
 	// compute fscaling to reduce multiplications later
-	fscaling = UT_PER_COUNT / DEFAULTB;
+	fscaling = 1.0F / DEFAULTB;
 
 	// the offsets are guaranteed to be set from the first element but to avoid compiler error
-	iOffset[X] = iOffset[Y] = iOffset[Z] = 0;
+	Point_t BpOffset;
 
 	// zero the on and above diagonal elements of the 10x10 symmetric measurement matrix m_matA
 	for (m = 0; m < 10; m++) {
@@ -592,15 +576,12 @@ void MagCalibrator::UpdateCalibration10EIG()
 			// use first valid magnetic buffer entry as estimate for offset
 			// to help solution (bit counts)
 			if (iCount == 0) {
-				for (k = X; k <= Z; k++) {
-					iOffset[k] = m_aBpFast[k][j];
-				}
+				BpOffset = m_aBpFast[j];
 			}
 
 			// apply the fixed offset and scaling and enter into m_vecA[6-8]
 			for (k = X; k <= Z; k++) {
-				m_vecA[k + 6] = (float)((int32_t)m_aBpFast[k][j]
-					- (int32_t)iOffset[k]) * fscaling;
+				m_vecA[k + 6] = (m_aBpFast[j][k] - BpOffset[k]) * fscaling;
 			}
 
 			// compute measurement vector elements m_vecA[0-5] from m_vecA[6-8]
@@ -700,7 +681,7 @@ void MagCalibrator::UpdateCalibration10EIG()
 	// correct for the measurement matrix offset and scaling and
 	// get the computed hard iron offset in uT
 	for (k = X; k <= Z; k++) {
-		m_calNext_V[k] = m_calNext_V[k] * DEFAULTB + (float)iOffset[k] * UT_PER_COUNT;
+		m_calNext_V[k] = m_calNext_V[k] * DEFAULTB + BpOffset[k];
 	}
 
 	// convert the trial geomagnetic field strength B into uT for
@@ -748,16 +729,14 @@ void MagCalibrator::UpdateCalibration10EIG()
 	}
 }
 
-void MagCalibrator::apply_calibration(int16_t rawx, int16_t rawy, int16_t rawz, Point_t* out)
+void MagCalibrator::apply_calibration(const Point_t & Bp, Point_t* pBc)
 {
-	float x, y, z;
-
-	x = ((float)rawx * UT_PER_COUNT) - m_cal_V[0];
-	y = ((float)rawy * UT_PER_COUNT) - m_cal_V[1];
-	z = ((float)rawz * UT_PER_COUNT) - m_cal_V[2];
-	out->x = x * m_cal_invW[0][0] + y * m_cal_invW[0][1] + z * m_cal_invW[0][2];
-	out->y = x * m_cal_invW[1][0] + y * m_cal_invW[1][1] + z * m_cal_invW[1][2];
-	out->z = x * m_cal_invW[2][0] + y * m_cal_invW[2][1] + z * m_cal_invW[2][2];
+	float x = Bp.x - m_cal_V[0];
+	float y = Bp.y - m_cal_V[1];
+	float z = Bp.z - m_cal_V[2];
+	pBc->x = x * m_cal_invW[0][0] + y * m_cal_invW[0][1] + z * m_cal_invW[0][2];
+	pBc->y = x * m_cal_invW[1][0] + y * m_cal_invW[1][1] + z * m_cal_invW[1][2];
+	pBc->z = x * m_cal_invW[2][0] + y * m_cal_invW[2][1] + z * m_cal_invW[2][2];
 }
 
 } // namespace libcalib

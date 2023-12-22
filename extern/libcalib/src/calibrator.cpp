@@ -26,18 +26,22 @@ void Calibrator::reset()
 
 void Calibrator::add_raw_data(const int16_t(&data)[9])
 {
-	float x, y, z, ratio, magdiff;
-	Point_t point;
+	Point_t BpFast(
+			(float)data[6] * UT_PER_COUNT,
+			(float)data[7] * UT_PER_COUNT,
+			(float)data[8] * UT_PER_COUNT);
 
-	m_magcal.add_magcal_data(data);
-	x = m_magcal.m_cal_V[0];
-	y = m_magcal.m_cal_V[1];
-	z = m_magcal.m_cal_V[2];
+	m_magcal.add_magcal_data(BpFast);
+
+	float x = m_magcal.m_cal_V[0];
+	float y = m_magcal.m_cal_V[1];
+	float z = m_magcal.m_cal_V[2];
+
 	if (m_magcal.get_new_calibration()) {
 		x -= m_magcal.m_cal_V[0];
 		y -= m_magcal.m_cal_V[1];
 		z -= m_magcal.m_cal_V[2];
-		magdiff = sqrtf(x * x + y * y + z * z);
+		float magdiff = sqrtf(x * x + y * y + z * z);
 		//printf("magdiff = %.2f\n", magdiff);
 		if (magdiff > 0.8f) {
 			m_fusion.init();
@@ -80,17 +84,18 @@ void Calibrator::add_raw_data(const int16_t(&data)[9])
 	m_gyro.YpFast[m_oversample_countdown][1] = y;
 	m_gyro.YpFast[m_oversample_countdown][2] = z;
 
-	m_magcal.apply_calibration(data[6], data[7], data[8], &point);
-	m_mag.BcFast[0] = point.x;
-	m_mag.BcFast[1] = point.y;
-	m_mag.BcFast[2] = point.z;
-	m_mag.Bc[0] += point.x;
-	m_mag.Bc[1] += point.y;
-	m_mag.Bc[2] += point.z;
+	Point_t BcFast;
+	m_magcal.apply_calibration(BpFast, &BcFast);
+	m_mag.BcFast[0] = BcFast.x;
+	m_mag.BcFast[1] = BcFast.y;
+	m_mag.BcFast[2] = BcFast.z;
+	m_mag.Bc[0] += BcFast.x;
+	m_mag.Bc[1] += BcFast.y;
+	m_mag.Bc[2] += BcFast.z;
 
 	m_oversample_countdown++;
 	if (m_oversample_countdown >= OVERSAMPLE_RATIO) {
-		ratio = 1.0f / (float)OVERSAMPLE_RATIO;
+		float ratio = 1.0f / (float)OVERSAMPLE_RATIO;
 		m_accel.Gp[0] *= ratio;
 		m_accel.Gp[1] *= ratio;
 		m_accel.Gp[2] *= ratio;

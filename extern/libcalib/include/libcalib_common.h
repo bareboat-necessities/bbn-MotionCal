@@ -16,14 +16,31 @@ constexpr int OVERSAMPLE_RATIO = 4;
 
 struct Point_t
 {
+	Point_t(
+		float i_x = 0.0f,
+		float i_y = 0.0f,
+		float i_z = 0.0f)
+	: x(i_x), y(i_y), z(i_z)
+		{ ; }
+
 	float x;
 	float y;
 	float z;
-	//int valid;
+
+	float operator[](int i)
+		{ return (&x)[i]; }
 };
 
 struct Quaternion_t
 {
+	Quaternion_t(
+		float i_q0 = 1.0f,
+		float i_q1 = 0.0f,
+		float i_q2 = 0.0f,
+		float i_q3 = 0.0f)
+	: q0(i_q0), q1(i_q1), q2(i_q2), q3(i_q3)
+		{ ; }
+
 	float q0; // w
 	float q1; // x
 	float q2; // y

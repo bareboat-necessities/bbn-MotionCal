@@ -8,9 +8,13 @@ namespace libcalib
 struct mahony
 {
 			mahony()
-				{ init(true); }
+			: m_q0(1.0f)
+			, m_q1(0.0f)
+			, m_q2(0.0f)
+			, m_q3(0.0f)
+				{ init(); }
 
-	void	init(bool first = false);
+	void	init();
 	void	update(
 				const AccelSensor_t *Accel,
 				const MagSensor_t *Mag,

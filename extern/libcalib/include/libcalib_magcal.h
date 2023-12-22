@@ -18,16 +18,16 @@ public:
 
 	void reset()
 	        { *this = MagCalibrator(); }
-	void add_magcal_data(const int16_t(&data)[9]);
+	void add_magcal_data(const Point_t & BpFast);
 	bool get_new_calibration();
-	void apply_calibration(int16_t rawx, int16_t rawy, int16_t rawz, Point_t* out);
+	void apply_calibration(const Point_t & Bp, Point_t* pBc);
 
     float m_cal_V[3];                  // current hard iron offset x, y, z, (uT)
     float m_cal_invW[3][3];            // current inverse soft iron matrix
     float m_cal_B;                     // current geomagnetic field magnitude (uT)
     float m_errorFit;              // current fit error %
     int8_t m_isValid;          // integer value 0, 4, 7, 10 denoting both valid calibration and solver used
-    int16_t m_aBpFast[3][MAGBUFFSIZE];   // uncalibrated magnetometer readings
+    Point_t m_aBpFast[MAGBUFFSIZE];   // uncalibrated magnetometer readings
     int8_t  m_aBpIsValid[MAGBUFFSIZE];        // 1=has data, 0=empty slot
     int16_t m_cBpIsValid;           // number of magnetometer readings
 
