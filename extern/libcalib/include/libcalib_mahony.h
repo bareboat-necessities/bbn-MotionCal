@@ -5,9 +5,9 @@
 namespace libcalib
 {
 
-struct mahony
+struct Mahony
 {
-			mahony()
+			Mahony()
 			: m_q0(1.0f)
 			, m_q1(0.0f)
 			, m_q2(0.0f)

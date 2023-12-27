@@ -39,7 +39,7 @@ constexpr float INV_SAMPLE_RATE = (1.0f / SENSORFS);
 //	https://en.wikipedia.org/wiki/Fast_inverse_square_root#Obsolescence
 // float invSqrt(float x);
 
-void mahony::update(
+void Mahony::update(
 	const AccelSensor_t *Accel,
 	const MagSensor_t *Mag,
 	const GyroSensor_t* Gyro,
@@ -67,7 +67,7 @@ void mahony::update(
 	}
 }
 
-void mahony::read(Quaternion_t* q)
+void Mahony::read(Quaternion_t* q)
 {
 	q->q0 = m_q0;
 	q->q1 = m_q1;
@@ -78,7 +78,7 @@ void mahony::read(Quaternion_t* q)
 //----------------------------------------------------------------------------------------------
 // AHRS algorithm update
 
-void mahony::init()
+void Mahony::init()
 {
 	m_twoKp = twoKpDef;	// 2 * proportional gain (Kp)
 	m_twoKi = twoKiDef;	// 2 * integral gain (Ki)
@@ -90,7 +90,7 @@ void mahony::init()
 	m_integralFBz = 0.0f;
 }
 
-void mahony::update(float gx, float gy, float gz, float ax, float ay, float az, float mx, float my, float mz)
+void Mahony::update(float gx, float gy, float gz, float ax, float ay, float az, float mx, float my, float mz)
 {
 	float norm;
 	float q0q0, q0q1, q0q2, q0q3, q1q1, q1q2, q1q3, q2q2, q2q3, q3q3;
@@ -121,14 +121,7 @@ void mahony::update(float gx, float gy, float gz, float ax, float ay, float az, 
 		mx /= norm;
 		my /= norm;
 		mz /= norm;
-#if 0
-		// crazy experiement - no filter, just use magnetometer...
-		m_q0 = 0;
-		m_q1 = mx;
-		m_q2 = my;
-		m_q3 = mz;
-		return;
-#endif
+
 		// Auxiliary variables to avoid repeated arithmetic
 		q0q0 = m_q0 * m_q0;
 		q0q1 = m_q0 * m_q1;
@@ -214,7 +207,7 @@ void mahony::update(float gx, float gy, float gz, float ax, float ay, float az, 
 //---------------------------------------------------------------------------------------------
 // IMU algorithm update
 
-void mahony::updateIMU(float gx, float gy, float gz, float ax, float ay, float az)
+void Mahony::updateIMU(float gx, float gy, float gz, float ax, float ay, float az)
 {
 	float norm;
 	float halfvx, halfvy, halfvz;

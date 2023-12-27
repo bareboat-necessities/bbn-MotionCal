@@ -29,8 +29,6 @@ static void rotate(const libcalib::Point_t *in, libcalib::Point_t *out, const fl
 static GLuint spherelist;
 static GLuint spherelowreslist;
 
-int invert_q3=1;
-
 void display_callback()
 {
 	int i;
@@ -44,11 +42,6 @@ void display_callback()
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	glColor3f(1, 0, 0);	// set current color to red
 	glLoadIdentity();
-#if 0
-	gluLookAt(0.0, 0.0, 0.8, // eye location
-		  0.0, 0.0, 0.0, // center
-		  0.0, 1.0, 0.0); // up direction
-#endif
 	xscale = 0.05;
 	yscale = 0.05;
 	zscale = 0.05;
@@ -86,13 +79,6 @@ void display_callback()
 			}
 		}
 	}
-#if 0
-	printf(" quality: %5.1f  %5.1f  %5.1f  %5.1f\n",
-		quality_surface_gap_error(),
-		quality_magnitude_variance_error(),
-		quality_wobble_error(),
-		magcal.m_errorFit);
-#endif
 }
 
 void resize_callback(int width, int height)

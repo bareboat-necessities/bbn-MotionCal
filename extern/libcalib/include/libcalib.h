@@ -39,7 +39,7 @@ private:
 	MagSensor_t   m_mag;
 	GyroSensor_t  m_gyro;
 
-	libcalib::nxp m_fusion;
+	libcalib::Nxp m_fusion;
 
 	static const int s_force_orientation_countdown_max = 240;
 };

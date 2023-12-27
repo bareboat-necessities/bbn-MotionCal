@@ -5,9 +5,9 @@
 namespace libcalib
 {
 
-struct quality
+struct Quality
 {
-			quality();
+			Quality();
 
 	void	reset();
 	void	update(const Point_t* point);

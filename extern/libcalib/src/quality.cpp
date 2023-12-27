@@ -61,7 +61,7 @@ int sphere_region(float x, float y, float z)
 	return region;
 }
 
-quality::quality()
+Quality::Quality()
 : m_count(0)
 , m_spheredist()
 , m_spheredata()
@@ -115,7 +115,7 @@ quality::quality()
 	m_sphereideal[99].z = -1.0f;
 }
 
-void quality::reset()
+void Quality::reset()
 {
 	m_count = 0;
 	memset(&m_spheredist, 0, sizeof(m_spheredist));
@@ -126,7 +126,7 @@ void quality::reset()
 	m_is_wobble_computed = false;
 }
 
-void quality::update(const Point_t *point)
+void Quality::update(const Point_t *point)
 {
 	float x, y, z;
 	int region;
@@ -136,7 +136,7 @@ void quality::update(const Point_t *point)
 	z = point->z;
 	// NOTE bruceo: uh, what if count is >= MAGBUFFSIZE?
 	//	seems like we could be walking off the end of the array here.
-	// ah, ok. it appears that display_callback() calls quality::reset()
+	// ah, ok. it appears that display_callback() calls Quality::reset()
 	//	before feeding all the MagCalibrator::m_aBpFast calibrated points to this
 	//	routine. so we are guaranteed to never get more than MAGBUFFSIZE
 	//	points.
@@ -153,7 +153,7 @@ void quality::update(const Point_t *point)
 }
 
 // How many surface gaps
-float quality::surface_gap_error()
+float Quality::surface_gap_error()
 {
 	float error=0.0f;
 	int i, num;
@@ -175,7 +175,7 @@ float quality::surface_gap_error()
 }
 
 // Variance in magnitude
-float quality::magnitude_variance_error()
+float Quality::magnitude_variance_error()
 {
 	float sum, mean, diff, variance;
 	int i;
@@ -198,7 +198,7 @@ float quality::magnitude_variance_error()
 }
 
 // Offset of piecewise average data from ideal sphere surface
-float quality::wobble_error()
+float Quality::wobble_error()
 {
 	float sum, radius, x, y, z, xi, yi, zi;
 	float xoff=0.0f, yoff=0.0f, zoff=0.0f;

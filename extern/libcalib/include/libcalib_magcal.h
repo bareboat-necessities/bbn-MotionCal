@@ -55,7 +55,7 @@ private:
 	int m_discard_count;                // choose_discard_magcal() counter for choosing field strength discards
     int m_new_wait_count;               // number of times get_new_calibration() had been called without doing any work
 
-	libcalib::quality m_quality;
+	libcalib::Quality m_quality;
 
     static const int s_new_wait_count_max = 20; // in get_new_calibration() only do work after this many calls
 };

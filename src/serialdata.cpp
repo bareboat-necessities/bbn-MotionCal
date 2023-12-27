@@ -488,17 +488,6 @@ void cal1_data(const float* data)
 	int i, ok;
 
 	if (cal_confirm_needed) {
-#if 0
-		printf("expected cal1: ");
-		for (i = 0; i < 10; i++) {
-			printf("  %.5f,", cal_data_sent[i]);
-		}
-		printf("\ngot cal1_data: ");
-		for (i = 0; i < 10; i++) {
-			printf("  %.5f,", data[i]);
-		}
-		printf("\n");
-#endif
 		ok = 1;
 		for (i = 0; i < 10; i++) {
 			if (!is_float_ok(data[i], cal_data_sent[i])) ok = 0;
@@ -517,17 +506,6 @@ void cal2_data(const float* data)
 	int i, ok;
 
 	if (cal_confirm_needed) {
-#if 0
-		printf("expected cal2: ");
-		for (i = 0; i < 9; i++) {
-			printf(" %.5f,", cal_data_sent[i + 10]);
-		}
-		printf("\ngot cal2_data: ");
-		for (i = 0; i < 9; i++) {
-			printf(" %.5f,", data[i]);
-		}
-		printf("\n");
-#endif
 		ok = 1;
 		for (i = 0; i < 9; i++) {
 			if (!is_float_ok(data[i], cal_data_sent[i + 10])) ok = 0;

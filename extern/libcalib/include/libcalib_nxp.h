@@ -6,9 +6,9 @@
 namespace libcalib
 {
 
-struct nxp
+struct Nxp
 {
-			nxp()
+			Nxp()
 				{ init(); }
 
 	void	init();

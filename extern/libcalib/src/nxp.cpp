@@ -93,7 +93,7 @@ float fatan2_deg(float y, float x);
 float fatan_15deg(float x);
 
 // function initializes the 9DOF Kalman filter
-void nxp::init()
+void Nxp::init()
 {
 	int8_t i, j;				// loop counters
 
@@ -166,7 +166,7 @@ void nxp::init()
 
 
 // 9DOF orientation function implemented using a 12 element Kalman filter
-void nxp::update(
+void Nxp::update(
 	const AccelSensor_t *Accel,
 	const MagSensor_t *Mag,
 	const GyroSensor_t *Gyro,
@@ -725,7 +725,7 @@ void nxp::update(
 	}
 }
 
-void nxp::read(Quaternion_t* q)
+void Nxp::read(Quaternion_t* q)
 {
 	*q = m_qPl;
 }
@@ -1158,80 +1158,6 @@ void fRotationVectorDegFromQuaternion(Quaternion_t *pq, float rvecdeg[])
 	}
 }
 
-#if 0
-// function low pass filters an orientation quaternion and computes virtual gyro rotation rate
-void fLPFOrientationQuaternion(Quaternion_t *pq, Quaternion_t *pLPq, float flpf, float fdeltat,
-		float fOmega[], int32_t loopcounter)
-{
-	// local variables
-	Quaternion_t fdeltaq;			// delta rotation quaternion
-	float rvecdeg[3];				// rotation vector (deg)
-	float ftmp;						// scratch variable
-
-	// initialize delay line on first pass: LPq[n]=q[n]
-	if (loopcounter == 0) {
-		*pLPq = *pq;
-	}
-
-	// set fdeltaqn to the delta rotation quaternion conjg(fLPq[n-1) . fqn
-	fdeltaq = qconjgAxB(pLPq, pq);
-	if (fdeltaq.q0 < 0.0F) {
-		fdeltaq.q0 = -fdeltaq.q0;
-		fdeltaq.q1 = -fdeltaq.q1;
-		fdeltaq.q2 = -fdeltaq.q2;
-		fdeltaq.q3 = -fdeltaq.q3;
-	}
-
-	// set ftmp to a scaled lpf value which equals flpf in the limit of small rotations (q0=1)
-	// but which rises as the delta rotation angle increases (q0 tends to zero)
-	ftmp = flpf + 0.75F * (1.0F - fdeltaq.q0);
-	if (ftmp > 1.0F) {
-		ftmp = 1.0F;
-	}
-
-	// scale the delta rotation by the corrected lpf value
-	fdeltaq.q1 *= ftmp;
-	fdeltaq.q2 *= ftmp;
-	fdeltaq.q3 *= ftmp;
-
-	// compute the scalar component q0
-	ftmp = fdeltaq.q1 * fdeltaq.q1 + fdeltaq.q2 * fdeltaq.q2 + fdeltaq.q3 * fdeltaq.q3;
-	if (ftmp <= 1.0F) {
-		// normal case
-		fdeltaq.q0 = sqrtf(1.0F - ftmp);
-	} else {
-		// rounding errors present so simply set scalar component to 0
-		fdeltaq.q0 = 0.0F;
-	}
-
-	// calculate the delta rotation vector from fdeltaqn and the virtual gyro angular velocity (deg/s)
-	fRotationVectorDegFromQuaternion(&fdeltaq, rvecdeg);
-	ftmp = 1.0F / fdeltat;
-	fOmega[X] = rvecdeg[X] * ftmp;
-	fOmega[Y] = rvecdeg[Y] * ftmp;
-	fOmega[Z] = rvecdeg[Z] * ftmp;
-
-	// set LPq[n] = LPq[n-1] . deltaq[n]
-	qAeqAxB(pLPq, &fdeltaq);
-
-	// renormalize the low pass filtered quaternion to prevent error accumulation
-	// the renormalization function ensures that q0 is non-negative
-	fqAeqNormqA(pLPq);
-}
-
-// function low pass filters a scalar
-void fLPFScalar(float *pfS, float *pfLPS, float flpf, int32_t loopcounter)
-{
-	// set S[LP,n]=S[n] on first pass
-	if (loopcounter == 0) {
-		*pfLPS = *pfS;
-	}
-
-	// apply the exponential low pass filter
-	*pfLPS += flpf * (*pfS - *pfLPS);
-}
-#endif
-
 // function compute the quaternion product qA * qB
 void qAeqBxC(Quaternion_t *pqA, const Quaternion_t *pqB, const Quaternion_t *pqC)
 {
@@ -1255,21 +1181,6 @@ void qAeqAxB(Quaternion_t *pqA, const Quaternion_t *pqB)
 	// copy the result back into qA
 	*pqA = qProd;
 }
-
-#if 0
-// function compute the quaternion product conjg(qA) * qB
-Quaternion_t qconjgAxB(const Quaternion_t *pqA, const Quaternion_t *pqB)
-{
-	Quaternion_t qProd;
-
-	qProd.q0 = pqA->q0 * pqB->q0 + pqA->q1 * pqB->q1 + pqA->q2 * pqB->q2 + pqA->q3 * pqB->q3;
-	qProd.q1 = pqA->q0 * pqB->q1 - pqA->q1 * pqB->q0 - pqA->q2 * pqB->q3 + pqA->q3 * pqB->q2;
-	qProd.q2 = pqA->q0 * pqB->q2 + pqA->q1 * pqB->q3 - pqA->q2 * pqB->q0 - pqA->q3 * pqB->q1;
-	qProd.q3 = pqA->q0 * pqB->q3 - pqA->q1 * pqB->q2 + pqA->q2 * pqB->q1 - pqA->q3 * pqB->q0;
-
-	return qProd;
-}
-#endif
 
 // function normalizes a rotation quaternion and ensures q0 is non-negative
 void fqAeqNormqA(Quaternion_t *pqA)
