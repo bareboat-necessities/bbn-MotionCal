@@ -3,6 +3,8 @@
 #include <math.h>
 #include <string.h>
 
+#include <algorithm>
+
 namespace libcalib
 {
 
@@ -13,21 +15,6 @@ constexpr float RadFromDeg(float deg)
 
 template<uint32_t N, class T>
 constexpr uint32_t DIM(T(&)[N]) { return N; }
-
-inline int min(int a, int b)
-{
-	return (a < b) ? a : b;
-}
-
-inline int max(int a, int b)
-{
-	return (a > b) ? a : b;
-}
-
-inline int clamp(int i, int iFirst, int iLast)
-{
-	return min(max(i,iFirst), iLast);
-}
 
 // a class which breaks a sphere into 100 partitions of roughly equal
 //	size and radius. details here:
@@ -153,7 +140,7 @@ int SpherePartition::RegionFromXyz(float x, float y, float z)
 
 			float longitude = atan2f(y, x) + M_PI;
 			int subregion = floorf(float(collar.m_cRegion) * longitude / (M_PI * 2.0));
-			subregion = clamp(subregion, 0, collar.m_cRegion - 1);
+			subregion = std::clamp(subregion, 0, collar.m_cRegion - 1);
 
 			return regionCur + subregion;
 		}
