@@ -254,7 +254,6 @@ void MyFrame::OnTimer(wxTimerEvent &event)
 {
 	static int firstrun=1;
 	float gaps, variance, wobble, fiterror;
-	char buf[32];
 	int i, j;
 
 	//printf("OnTimer\n");
@@ -284,33 +283,24 @@ void MyFrame::OnTimer(wxTimerEvent &event)
 				m_confirm_icon->SetBitmap(MyBitmap("checkemptygray.png"));
 			}
 		}
-		snprintf(buf, sizeof(buf), "%.1f%%", calib.quality_surface_gap_error());
-		m_err_coverage->SetLabelText(buf);
-		snprintf(buf, sizeof(buf), "%.1f%%", calib.quality_magnitude_variance_error());
-		m_err_variance->SetLabelText(buf);
-		snprintf(buf, sizeof(buf), "%.1f%%", calib.quality_wobble_error());
-		m_err_wobble->SetLabelText(buf);
-		snprintf(buf, sizeof(buf), "%.1f%%", calib.quality_spherical_fit_error());
-		m_err_fit->SetLabelText(buf);
+		m_err_coverage->SetLabelText(wxString::Format("%.1f%%", calib.quality_surface_gap_error()));
+		m_err_variance->SetLabelText(wxString::Format("%.1f%%", calib.quality_magnitude_variance_error()));
+		m_err_wobble->SetLabelText(wxString::Format("%.1f%%", calib.quality_wobble_error()));
+		m_err_fit->SetLabelText(wxString::Format("%.1f%%", calib.quality_spherical_fit_error()));
 		for (i=0; i < 3; i++) {
-			snprintf(buf, sizeof(buf), "%.2f", calib.m_magcal.m_cal_V[i]);
-			m_mag_offset[i]->SetLabelText(buf);
+			m_mag_offset[i]->SetLabelText(wxString::Format("%.2f", calib.m_magcal.m_cal_V[i]));
 		}
 		for (i=0; i < 3; i++) {
 			for (j=0; j < 3; j++) {
-				snprintf(buf, sizeof(buf), "%+.3f", calib.m_magcal.m_cal_invW[i][j]);
-				m_mag_mapping[i][j]->SetLabelText(buf);
+				m_mag_mapping[i][j]->SetLabelText(wxString::Format("%+.3f", calib.m_magcal.m_cal_invW[i][j]));
 			}
 		}
-		snprintf(buf, sizeof(buf), "%.2f", calib.m_magcal.m_cal_B);
-		m_mag_field->SetLabelText(buf);
+		m_mag_field->SetLabelText(wxString::Format("%.2f", calib.m_magcal.m_cal_B));
 		for (i=0; i < 3; i++) {
-			snprintf(buf, sizeof(buf), "%.3f", 0.0f); // TODO...
-			m_accel[i]->SetLabelText(buf);
+			m_accel[i]->SetLabelText(wxString::Format("%.3f", 0.0f)); // TODO...
 		}
 		for (i=0; i < 3; i++) {
-			snprintf(buf, sizeof(buf), "%.3f", 0.0f); // TODO...
-			m_gyro[i]->SetLabelText(buf);
+			m_gyro[i]->SetLabelText(wxString::Format("%.3f", 0.0f)); // TODO...
 		}
 	} else {
 		if (!port_name.IsEmpty()) {
