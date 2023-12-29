@@ -20,7 +20,6 @@ private:
 	int		m_count;
 	int		m_spheredist[100];
 	Point_t	m_spheredata[100];
-	Point_t	m_sphereideal[100];
 	bool	m_is_sphereideal_initialized;
 	float	m_magnitude[MAGBUFFSIZE];
 	float	m_gaps_buffer;

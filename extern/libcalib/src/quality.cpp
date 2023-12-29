@@ -1,71 +1,178 @@
 #include "libcalib_quality.h"
 
-#include <string.h>
 #include <math.h>
+#include <string.h>
 
 namespace libcalib
 {
 
-// Discussion of what these 4 quality metrics really do
-// https://forum.pjrc.com/threads/59277-Motion-Sensor-Calibration-Tool-Parameter-Understanding
-
-// return 0 to 99 - which region on the sphere (100 of equal surface area)
-int sphere_region(float x, float y, float z)
+constexpr float RadFromDeg(float deg)
 {
-	float latitude, longitude;
-	int region;
+	return (M_PI * deg) / 180.0f;
+}
 
-	//if (pr) printf("  region %.1f,%.1f,%.1f  ", x, y, z);
+template<uint32_t N, class T>
+constexpr uint32_t DIM(T(&)[N]) { return N; }
 
-	// longitude = 0 to 2pi  (meaning 0 to 360 degrees)
-	longitude = atan2f(y, x) + (float)M_PI;
-	// latitude = -pi/2 to +pi/2  (meaning -90 to +90 degrees)
-	latitude = (float)(M_PI / 2.0) - atan2f(sqrtf(x * x + y * y), z);
+inline int min(int a, int b)
+{
+	return (a < b) ? a : b;
+}
 
-	//if (pr) printf("   lat=%.1f", latitude * (float)(180.0 / M_PI));
-	//if (pr) printf(",lon=%.1f  ", longitude * (float)(180.0 / M_PI));
+inline int max(int a, int b)
+{
+	return (a > b) ? a : b;
+}
 
-	// https://etna.mcs.kent.edu/vol.25.2006/pp309-327.dir/pp309-327.html
-	// sphere equations....
-	//  area of unit sphere = 4*pi
-	//  area of unit sphere cap = 2*pi*h  h = cap height
-	//  lattitude of unit sphere cap = arcsin(1 - h)
-	if (latitude > 1.37046f /* 78.52 deg */) {
-		// arctic cap, 1 region
-		region = 0;
-	} else if (latitude < -1.37046f /* -78.52 deg */) {
-		// antarctic cap, 1 region
-		region = 99;
-	} else if (latitude > 0.74776f /* 42.84 deg */ || latitude < -0.74776f ) {
-		// temperate zones, 15 regions each
-		region = floorf(longitude * (float)(15.0 / (M_PI * 2.0)));
-		if (region < 0) region = 0;
-		else if (region > 14) region = 14;
-		if (latitude > 0.0) {
-			region += 1; // 1 to 15
-		} else {
-			region += 84; // 84 to 98
-		}
-	} else {
-		// tropic zones, 34 regions each
-		region = floorf(longitude * (float)(34.0 / (M_PI * 2.0)));
-		if (region < 0) region = 0;
-		else if (region > 33) region = 33;
-		if (latitude >= 0.0) {
-			region += 16; // 16 to 49
-		} else {
-			region += 50; // 50 to 83
+inline int clamp(int i, int iFirst, int iLast)
+{
+	return min(max(i,iFirst), iLast);
+}
+
+// a class which breaks a sphere into 100 partitions of roughly equal
+//	size and radius. details here:
+//		https://etna.mcs.kent.edu/vol.25.2006/pp309-327.dir/pp309-327.html
+// sphere equations....
+//  area of unit sphere = 4*pi
+//  area of unit sphere cap = 2*pi*h  h = cap height
+//  lattitude of unit sphere cap = arcsin(1 - h)
+
+struct SpherePartition
+{
+	SpherePartition();
+
+	static const int s_regionMax = 100;
+
+	Point_t	m_mpRegionAnchor[s_regionMax];
+	
+	int RegionFromXyz(float x, float y, float z);
+
+private:
+	struct Collar
+	{
+		int		m_cRegion;	// number of regions
+		float	m_latMax;	// upper/lower latitude in radians
+		float	m_latMin;
+	};
+
+
+	static constexpr int s_cRegionPole =		1;
+	static constexpr int s_cRegionTemperate =	15;
+	static constexpr int s_cRegionTropic =		34;
+
+	static constexpr float s_degNorthPole =		90.0f;
+	static constexpr float s_degTemperateMax =	78.52;
+	static constexpr float s_degTropicMax =		42.84;
+	static constexpr float s_degEquator =		0.0f;
+	static constexpr float s_degTropicMin =		-s_degTropicMax;
+	static constexpr float s_degTemperateMin =	-s_degTemperateMax;
+	static constexpr float s_degSouthPole =		-s_degNorthPole;
+
+	static constexpr float s_radNorthPole =		RadFromDeg(s_degNorthPole);
+	static constexpr float s_radTemperateMax =	RadFromDeg(s_degTemperateMax);
+	static constexpr float s_radTropicMax =		RadFromDeg(s_degTropicMax);
+	static constexpr float s_radEquator =		RadFromDeg(s_degEquator);
+	static constexpr float s_radTropicMin =		RadFromDeg(s_degTropicMin);
+	static constexpr float s_radTemperateMin =	RadFromDeg(s_degTemperateMin);
+	static constexpr float s_radSouthPole =		RadFromDeg(s_degSouthPole);
+
+	static constexpr Collar s_aCollar[] =
+	{
+		// m_cRegion			m_latMax			m_latMin
+		{ s_cRegionPole,		s_radNorthPole,		s_radTemperateMax },
+		{ s_cRegionTemperate,	s_radTemperateMax,	s_radTropicMax },
+		{ s_cRegionTropic,		s_radTropicMax,		s_radEquator },
+		{ s_cRegionTropic,		s_radEquator,		s_radTropicMin },
+		{ s_cRegionTemperate,	s_radTropicMin,		s_radTemperateMin },
+		{ s_cRegionPole,		s_radTemperateMin,	s_radSouthPole },
+	};
+	static constexpr int s_cCollar = DIM(s_aCollar);
+};
+
+
+SpherePartition::SpherePartition()
+{
+	static_assert(s_aCollar[0].m_cRegion == 1);
+
+	m_mpRegionAnchor[0].x = 0.0f;
+	m_mpRegionAnchor[0].y = 0.0f;
+	m_mpRegionAnchor[0].z = 1.0f;
+
+	Point_t * pAnchor = &m_mpRegionAnchor[1];
+
+	// NOTE: skipping first and last collars (the poles);
+
+	for (int iCollar = 1; iCollar < s_cCollar - 1; ++iCollar)
+	{
+		auto & collar = s_aCollar[iCollar];
+		float latMiddle = (collar.m_latMin + collar.m_latMax) / 2.0f;
+		float radiusMiddle = cosf(latMiddle);
+		float zMiddle = sinf(latMiddle);
+		float dLongitude = (M_PI * 2.0 / float(collar.m_cRegion));
+
+		for (int subregion = 0; subregion < collar.m_cRegion; ++subregion)
+		{
+			float longitude = (float(subregion) + 0.5f) * dLongitude;
+
+			// negation here is to flip regions into a winding order that matches
+			// the subregion from longitude calculation in RegionFromXyz().
+
+			pAnchor->x = -cosf(longitude) * radiusMiddle;
+			pAnchor->y = -sinf(longitude) * radiusMiddle;
+			pAnchor->z = zMiddle;
+
+			++pAnchor;
 		}
 	}
-	//if (pr) printf("  %d\n", region);
-	return region;
+
+	static_assert(s_aCollar[s_cCollar - 1].m_cRegion == 1);
+
+	m_mpRegionAnchor[s_regionMax - 1].x = 0.0f;
+	m_mpRegionAnchor[s_regionMax - 1].y = 0.0f;
+	m_mpRegionAnchor[s_regionMax - 1].z = -1.0f;
+
+	//for (int region = 0; region < s_regionMax; ++region)
+	//{
+	//	const auto & anchor = m_mpRegionAnchor[region];
+	//	assert(region == RegionFromXyz(anchor.x, anchor.y, anchor.z));
+	//}
 }
+
+int SpherePartition::RegionFromXyz(float x, float y, float z)
+{
+	float latitude = (M_PI / 2.0) - atan2f(sqrtf(x * x + y * y), z);
+
+	int regionCur = 0;
+
+	for (auto collar : s_aCollar)
+	{
+		if (latitude >= collar.m_latMin)
+		{
+			if (collar.m_cRegion <= 1)
+				return regionCur;
+
+			float longitude = atan2f(y, x) + M_PI;
+			int subregion = floorf(float(collar.m_cRegion) * longitude / (M_PI * 2.0));
+			subregion = clamp(subregion, 0, collar.m_cRegion - 1);
+
+			return regionCur + subregion;
+		}
+
+		regionCur += collar.m_cRegion;
+	}
+
+	return 0;
+}
+
+static SpherePartition s_sphere_partition;
+
+// Discussion of what these 4 quality metrics really do
+// https://forum.pjrc.com/threads/59277-Motion-Sensor-Calibration-Tool-Parameter-Understanding
 
 Quality::Quality()
 : m_count(0)
 , m_spheredist()
 , m_spheredata()
-, m_sphereideal()
 , m_magnitude()
 , m_gaps_buffer(0.0f)
 , m_variance_buffer(0.0f)
@@ -74,45 +181,6 @@ Quality::Quality()
 , m_is_variance_computed(false)
 , m_is_wobble_computed(false)
 {
-	float ring_a_angle = 1.05911;
-	float ring_a_radius = cosf(1.05911) * -1.0f;
-	float ring_a_height = sinf(1.05911);
-
-	float ring_b_angle = 0.37388;
-	float ring_b_radius = cosf(0.37388) * -1.0f;
-	float ring_b_height = sinf(0.37388);
-
-	m_sphereideal[0].x = 0.0f;
-	m_sphereideal[0].y = 0.0f;
-	m_sphereideal[0].z = 1.0f;
-
-	for (int i=1; i <= 15; i++) {
-		float longitude = ((float)(i - 1) + 0.5f) * (M_PI * 2.0 / 15.0);
-		m_sphereideal[i].x = cosf(longitude) * ring_a_radius;
-		m_sphereideal[i].y = sinf(longitude) * ring_a_radius;
-		m_sphereideal[i].z = ring_a_height;
-	}
-	for (int i=16; i <= 49; i++) {
-		float longitude = ((float)(i - 16) + 0.5f) * (M_PI * 2.0 / 34.0);
-		m_sphereideal[i].x = cosf(longitude) * ring_b_radius;
-		m_sphereideal[i].y = sinf(longitude) * ring_b_radius;
-		m_sphereideal[i].z = ring_b_height;
-	}
-	for (int i=50; i <= 83; i++) {
-		float longitude = ((float)(i - 50) + 0.5f) * (M_PI * 2.0 / 34.0);
-		m_sphereideal[i].x = cosf(longitude) * ring_b_radius;
-		m_sphereideal[i].y = sinf(longitude) * ring_b_radius;
-		m_sphereideal[i].z = -ring_b_height;
-	}
-	for (int i=84; i <= 98; i++) {
-		float longitude = ((float)(i - 1) + 0.5f) * (M_PI * 2.0 / 15.0);
-		m_sphereideal[i].x = cosf(longitude) * ring_a_radius;
-		m_sphereideal[i].y = sinf(longitude) * ring_a_radius;
-		m_sphereideal[i].z = -ring_a_height;
-	}
-	m_sphereideal[99].x = 0.0f;
-	m_sphereideal[99].y = 0.0f;
-	m_sphereideal[99].z = -1.0f;
 }
 
 void Quality::reset()
@@ -128,12 +196,9 @@ void Quality::reset()
 
 void Quality::update(const Point_t *point)
 {
-	float x, y, z;
-	int region;
-
-	x = point->x;
-	y = point->y;
-	z = point->z;
+	float x = point->x;
+	float y = point->y;
+	float z = point->z;
 	// NOTE bruceo: uh, what if count is >= MAGBUFFSIZE?
 	//	seems like we could be walking off the end of the array here.
 	// ah, ok. it appears that display_callback() calls Quality::reset()
@@ -141,7 +206,7 @@ void Quality::update(const Point_t *point)
 	//	routine. so we are guaranteed to never get more than MAGBUFFSIZE
 	//	points.
 	m_magnitude[m_count] = sqrtf(x * x + y * y + z * z);
-	region = sphere_region(x, y, z);
+	int region = s_sphere_partition.RegionFromXyz(x, y, z);
 	m_spheredist[region]++;
 	m_spheredata[region].x += x;
 	m_spheredata[region].y += y;
@@ -218,9 +283,9 @@ float Quality::wobble_error()
 			y = m_spheredata[i].y / (float)m_spheredist[i];
 			z = m_spheredata[i].z / (float)m_spheredist[i];
 			//if (pr) printf("  at: %5.1f %5.1f %5.1f :", x, y, z);
-			xi = m_sphereideal[i].x * radius;
-			yi = m_sphereideal[i].y * radius;
-			zi = m_sphereideal[i].z * radius;
+			xi = s_sphere_partition.m_mpRegionAnchor[i].x * radius;
+			yi = s_sphere_partition.m_mpRegionAnchor[i].y * radius;
+			zi = s_sphere_partition.m_mpRegionAnchor[i].z * radius;
 			//if (pr) printf("   ideal: %5.1f %5.1f %5.1f :", xi, yi, zi);
 			xoff += x - xi;
 			yoff += y - yi;
