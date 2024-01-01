@@ -30,8 +30,9 @@ void Calibrator::add_raw_data(const int16_t(&data)[9])
 			(float)data[6] * UT_PER_COUNT,
 			(float)data[7] * UT_PER_COUNT,
 			(float)data[8] * UT_PER_COUNT);
+	Point_t BcFast;
 
-	m_magcal.add_magcal_data(BpFast);
+	m_magcal.add_magcal_data(BpFast, &BcFast);
 
 	float x = m_magcal.m_cal_V[0];
 	float y = m_magcal.m_cal_V[1];
@@ -84,8 +85,6 @@ void Calibrator::add_raw_data(const int16_t(&data)[9])
 	m_gyro.YpFast[m_oversample_countdown][1] = y;
 	m_gyro.YpFast[m_oversample_countdown][2] = z;
 
-	Point_t BcFast;
-	m_magcal.apply_calibration(BpFast, &BcFast);
 	m_mag.BcFast[0] = BcFast.x;
 	m_mag.BcFast[1] = BcFast.y;
 	m_mag.BcFast[2] = BcFast.z;

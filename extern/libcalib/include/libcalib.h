@@ -15,19 +15,6 @@ public:
 	void reset();
 	void add_raw_data(const int16_t(&data)[9]);
 
-	void	quality_reset()
-				{ m_magcal.m_quality.reset(); }
-	void	quality_update(const Point_t* point)
-				{ m_magcal.m_quality.update(point); }
-	float	quality_surface_gap_error()
-				{ return m_magcal.m_quality.surface_gap_error(); }
-	float	quality_magnitude_variance_error()
-				{ return m_magcal.m_quality.magnitude_variance_error(); }
-	float	quality_wobble_error()
-				{ return m_magcal.m_quality.wobble_error(); }
-	float	quality_spherical_fit_error()
-				{ return m_magcal.m_errorFit; }
-
 	MagCalibrator m_magcal;
 	Quaternion_t m_current_orientation;
 

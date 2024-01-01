@@ -60,17 +60,16 @@ MagCalibrator::MagCalibrator()
 	: m_cal_V()
 	, m_cal_invW()
 	, m_cal_B()
-	, m_errorFit()
-	, m_isValid()
-	, m_aBpFast()
-	, m_aBpIsValid()
-	, m_cBpIsValid()
+	, m_errFit(MagQuality::s_errMax)
+	, m_isValid(0)
+	, m_cSamp(0)
+	, m_aSamp()
 	, m_quality()
-	, m_errorFitAged()
+	, m_errorFitAged(MagQuality::s_errMax)
 	, m_calNext_V()
 	, m_calNext_invW()
 	, m_calNext_B()
-	, m_errorFitNext()
+	, m_errorFitNext(MagQuality::s_errMax)
 	, m_A()
 	, m_invA()
 	, m_matA()
@@ -84,7 +83,7 @@ MagCalibrator::MagCalibrator()
 	m_cal_invW[0][0] = 1.0f;
 	m_cal_invW[1][1] = 1.0f;
 	m_cal_invW[2][2] = 1.0f;
-	m_errorFit = 100.0f;
+	m_errFit = 100.0f;
 	m_errorFitAged = 100.0f;
 	m_cal_B = 50.0f;
 }
@@ -101,30 +100,25 @@ int MagCalibrator::choose_discard_magcal()
 
 	// When enough data is collected (gaps error is low), assume we
 	// have a pretty good coverage and the field stregth is known.
-	gaps = m_quality.surface_gap_error();
+	gaps = m_quality.m_errGaps;
 	if (gaps < 25.0f) {
 		// occasionally look for points farthest from average field strength
 		// always rate limit assumption-based data purging, but allow the
 		// rate to increase as the angular coverage improves.
 		if (gaps < 1.0f) gaps = 1.0f;
 		if (++m_discard_count > (int)(gaps * 10.0f)) {
-			j = MAGBUFFSIZE;
+			j = m_cSamp;
 			errormax = 0.0f;
-			for (i = 0; i < MAGBUFFSIZE; i++) {
-				apply_calibration(m_aBpFast[i], &Bc);
-				x = Bc.x;
-				y = Bc.y;
-				z = Bc.z;
-				field = sqrtf(x * x + y * y + z * z);
+			for (i = 0; i < m_cSamp; i++) {
 				// if m_cal_B is bad, things could go horribly wrong
-				error = fabsf(field - m_cal_B);
+				error = fabsf(m_aSamp[i].m_field - m_cal_B);
 				if (error > errormax) {
 					errormax = error;
 					j = i;
 				}
 			}
 			m_discard_count = 0;
-			if (j < MAGBUFFSIZE) {
+			if (j < m_cSamp) {
 				//printf("worst error at %d\n", j);
 				return j;
 			}
@@ -133,17 +127,17 @@ int MagCalibrator::choose_discard_magcal()
 	else {
 		m_discard_count = 0;
 	}
-	// When solid info isn't availabe, find 2 points closest to each other,
+	// When solid info isn't available, find 2 points closest to each other,
 	// and discard the first one.  When we don't have good coverage, this
 	// approach tends to add points into previously unmeasured areas while
 	// discarding info from areas with highly redundant info.
 	// NOTE bruceo: we used to randomly choose which point to discard. now
 	// we always choose the first to allow for consistent results with test data.
-	for (i = 0; i < MAGBUFFSIZE; i++) {
-		for (j = i + 1; j < MAGBUFFSIZE; j++) {
-			dx = m_aBpFast[i].x - m_aBpFast[j].x;
-			dy = m_aBpFast[i].y - m_aBpFast[j].y;
-			dz = m_aBpFast[i].z - m_aBpFast[j].z;
+	for (i = 0; i < m_cSamp; i++) {
+		for (j = i + 1; j < m_cSamp; j++) {
+			dx = m_aSamp[i].m_pntRaw.x - m_aSamp[j].m_pntRaw.x;
+			dy = m_aSamp[i].m_pntRaw.y - m_aSamp[j].m_pntRaw.y;
+			dz = m_aSamp[i].m_pntRaw.z - m_aSamp[j].m_pntRaw.z;
 			distsq = (dx * dx) + (dy * dy) + (dz * dz);
 			if (distsq < minsum) {
 				minsum = distsq;
@@ -155,14 +149,10 @@ int MagCalibrator::choose_discard_magcal()
 }
 
 
-void MagCalibrator::add_magcal_data(const Point_t & BpFast)
+void MagCalibrator::add_magcal_data(const Point_t & BpFast, Point_t * pBcFast)
 {
-	int i;
+	int i = m_cSamp;
 
-	// first look for an unused caldata slot
-	for (i = 0; i < MAGBUFFSIZE; i++) {
-		if (!m_aBpIsValid[i]) break;
-	}
 	// If the buffer is full, we must choose which old data to discard.
 	// We must choose wisely!  Throwing away the wrong data could prevent
 	// collecting enough data distributed across the entire 3D angular
@@ -173,15 +163,29 @@ void MagCalibrator::add_magcal_data(const Point_t & BpFast)
 	// But if done well, purging bad data has massive potential to
 	// improve results.  The trick is telling the good from the bad while
 	// still in the process of learning what's good...
-	if (i >= MAGBUFFSIZE) {
+	if (i >= MAGBUFFSIZE)
+	{
 		i = choose_discard_magcal();
 		if (i < 0 || i >= MAGBUFFSIZE) {
 			i = 0;
 		}
 	}
-	// add it to the cal buffer
-	m_aBpFast[i] = BpFast;
-	m_aBpIsValid[i] = 1;
+	else
+	{
+		++m_cSamp;
+	}
+
+	// add it to the calibration buffer
+
+	m_aSamp[i].m_pntRaw = BpFast;
+	apply_calibration(i);
+	*pBcFast = m_aSamp[i].m_pntCal;
+
+	// NOTE: we do not update our quality metrics on every new sample.
+	//	instead, we update them after every new calibration is accepted
+	//	or when specifically asked to.
+
+	m_quality.set_invalid();
 }
 
 // run the magnetic calibration
@@ -189,19 +193,13 @@ bool MagCalibrator::get_new_calibration()
 {
 	int i, j;			// loop counters
 	int isolver;		// magnetic solver used
-	int count=0;
 
 	// only do the calibration occasionally
 
 	if (++m_new_wait_count < s_new_wait_count_max) return false;
 	m_new_wait_count = 0;
 
-	// count number of data points
-	for (i=0; i < MAGBUFFSIZE; i++) {
-		if (m_aBpIsValid[i]) count++;
-	}
-
-	if (count < MINMEASUREMENTS4CAL) return false;
+	if (m_cSamp < MINMEASUREMENTS4CAL) return false;
 
 	if (m_isValid) {
 		// age the existing fit error to avoid one good calibration locking out future updates
@@ -209,11 +207,11 @@ bool MagCalibrator::get_new_calibration()
 	}
 
 	// is enough data collected
-	if (count < MINMEASUREMENTS7CAL) {
+	if (m_cSamp < MINMEASUREMENTS7CAL) {
 		isolver = 4;
 		UpdateCalibration4INV(); // 4 element matrix inversion calibration
 		if (m_errorFitNext < 12.0f) m_errorFitNext = 12.0f;
-	} else if (count < MINMEASUREMENTS10CAL) {
+	} else if (m_cSamp < MINMEASUREMENTS10CAL) {
 		isolver = 7;
 		UpdateCalibration7EIG(); // 7 element eigenpair calibration
 		if (m_errorFitNext < 7.5f) m_errorFitNext = 7.5f;
@@ -234,7 +232,7 @@ bool MagCalibrator::get_new_calibration()
 			// accept the new calibration solution
 			//printf("new magnetic cal, B=%.2f uT\n", m_calNext_B);
 			m_isValid = isolver;
-			m_errorFit = m_errorFitNext;
+			m_errFit = m_errorFitNext;
 			if (m_errorFitNext > 2.0f) {
 				m_errorFitAged = m_errorFitNext;
 			} else {
@@ -247,6 +245,17 @@ bool MagCalibrator::get_new_calibration()
 					m_cal_invW[i][j] = m_calNext_invW[i][j];
 				}
 			}
+
+			// re-apply calibration to all our samples and update our quality metrics
+
+			for (i = 0; i < m_cSamp; ++i)
+			{
+				apply_calibration(i);
+			}
+
+			m_quality.set_invalid();
+			m_quality.ensure_valid(*this);
+
 			return true; // indicates new calibration applied
 		}
 	}
@@ -262,7 +271,6 @@ void MagCalibrator::UpdateCalibration4INV()
 	float fSumBp4;				// sum of fBp2
 	float fscaling;				// set to FUTPERCOUNT * FMATRIXSCALING
 	float fE;					// error function = r^T.r
-	int16_t iCount;				// number of measurements counted
 	int i, j, k;				// loop counters
 
 	// working arrays for 4x4 matrix inversion
@@ -289,58 +297,46 @@ void MagCalibrator::UpdateCalibration4INV()
 	}
 
 	// the offsets are guaranteed to be set from the first element but to avoid compiler error
-	Point_t BpOffset;
+	Point_t BpOffset = m_aSamp[0].m_pntRaw;
 
 	// use from MINEQUATIONS up to MAXEQUATIONS entries from magnetic buffer to compute matrices
-	iCount = 0;
-	for (j = 0; j < MAGBUFFSIZE; j++) {
-		if (m_aBpIsValid[j]) {
-			// use first valid magnetic buffer entry as estimate (in counts) for offset
-			if (iCount == 0) {
-				BpOffset = m_aBpFast[j];
-			}
+	for (j = 0; j < m_cSamp; j++) {
+		const Point_t & BpCur = m_aSamp[j].m_pntRaw;
 
-			// store scaled and offset fBp[XYZ] in m_vecA[0-2] and fBp[XYZ]^2 in m_vecA[3-5]
-			for (k = X; k <= Z; k++) {
-				m_vecA[k] = (m_aBpFast[j][k] - BpOffset[k]) * fscaling;
-				m_vecA[k + 3] = m_vecA[k] * m_vecA[k];
-			}
-
-			// calculate fBp2 = Bp[X]^2 + Bp[Y]^2 + Bp[Z]^2 (scaled uT^2)
-			fBp2 = m_vecA[3] + m_vecA[4] + m_vecA[5];
-
-			// accumulate fBp^4 over all measurements into fSumBp4=Y^T.Y
-			fSumBp4 += fBp2 * fBp2;
-
-			// now we have fBp2, accumulate m_vecB[0-2] = X^T.Y =sum(Bp2.Bp[XYZ])
-			for (k = X; k <= Z; k++) {
-				m_vecB[k] += m_vecA[k] * fBp2;
-			}
-
-			//accumulate m_vecB[3] = X^T.Y =sum(fBp2)
-			m_vecB[3] += fBp2;
-
-			// accumulate on and above-diagonal terms of m_matA = X^T.X ignoring m_matA[3][3]
-			m_matA[0][0] += m_vecA[X + 3];
-			m_matA[0][1] += m_vecA[X] * m_vecA[Y];
-			m_matA[0][2] += m_vecA[X] * m_vecA[Z];
-			m_matA[0][3] += m_vecA[X];
-			m_matA[1][1] += m_vecA[Y + 3];
-			m_matA[1][2] += m_vecA[Y] * m_vecA[Z];
-			m_matA[1][3] += m_vecA[Y];
-			m_matA[2][2] += m_vecA[Z + 3];
-			m_matA[2][3] += m_vecA[Z];
-
-			// increment the counter for next iteration
-			iCount++;
+		// store scaled and offset fBp[XYZ] in m_vecA[0-2] and fBp[XYZ]^2 in m_vecA[3-5]
+		for (k = X; k <= Z; k++) {
+			m_vecA[k] = (BpCur[k] - BpOffset[k]) * fscaling;
+			m_vecA[k + 3] = m_vecA[k] * m_vecA[k];
 		}
+
+		// calculate fBp2 = Bp[X]^2 + Bp[Y]^2 + Bp[Z]^2 (scaled uT^2)
+		fBp2 = m_vecA[3] + m_vecA[4] + m_vecA[5];
+
+		// accumulate fBp^4 over all measurements into fSumBp4=Y^T.Y
+		fSumBp4 += fBp2 * fBp2;
+
+		// now we have fBp2, accumulate m_vecB[0-2] = X^T.Y =sum(Bp2.Bp[XYZ])
+		for (k = X; k <= Z; k++) {
+			m_vecB[k] += m_vecA[k] * fBp2;
+		}
+
+		//accumulate m_vecB[3] = X^T.Y =sum(fBp2)
+		m_vecB[3] += fBp2;
+
+		// accumulate on and above-diagonal terms of m_matA = X^T.X ignoring m_matA[3][3]
+		m_matA[0][0] += m_vecA[X + 3];
+		m_matA[0][1] += m_vecA[X] * m_vecA[Y];
+		m_matA[0][2] += m_vecA[X] * m_vecA[Z];
+		m_matA[0][3] += m_vecA[X];
+		m_matA[1][1] += m_vecA[Y + 3];
+		m_matA[1][2] += m_vecA[Y] * m_vecA[Z];
+		m_matA[1][3] += m_vecA[Y];
+		m_matA[2][2] += m_vecA[Z + 3];
+		m_matA[2][3] += m_vecA[Z];
 	}
 
 	// set the last element of the measurement matrix to the number of buffer elements used
-	m_matA[3][3] = (float) iCount;
-
-	// store the number of measurements accumulated
-	m_cBpIsValid = iCount;
+	m_matA[3][3] = (float) m_cSamp;
 
 	// use above diagonal elements of symmetric m_matA to set both m_matB and m_matA to X^T.X
 	for (i = 0; i < 4; i++) {
@@ -397,7 +393,7 @@ void MagCalibrator::UpdateCalibration4INV()
 
 	// calculate the trial fit error (percent) normalized to number of measurements
 	// and scaled geomagnetic field strength
-	m_errorFitNext = sqrtf(fE / (float) m_cBpIsValid) * 100.0F /
+	m_errorFitNext = sqrtf(fE / (float) m_cSamp) * 100.0F /
 			(2.0F * m_calNext_B * m_calNext_B);
 
 	// correct the hard iron estimate for FMATRIXSCALING and the offsets applied (result in uT)
@@ -424,14 +420,13 @@ void MagCalibrator::UpdateCalibration7EIG()
 	float det;					// matrix determinant
 	float fscaling;				// set to FUTPERCOUNT * FMATRIXSCALING
 	float ftmp;					// scratch variable
-	int16_t iCount;				// number of measurements counted
 	int i, j, k, m, n;			// loop counters
 
 	// compute fscaling to reduce multiplications later
 	fscaling = 1.0F / DEFAULTB;
 
 	// the offsets are guaranteed to be set from the first element but to avoid compiler error
-	Point_t BpOffset;
+	Point_t BpOffset = m_aSamp[0].m_pntRaw;
 
 	// zero the on and above diagonal elements of the 7x7 symmetric measurement matrix m_matA
 	for (m = 0; m < 7; m++) {
@@ -441,45 +436,33 @@ void MagCalibrator::UpdateCalibration7EIG()
 	}
 
 	// place from MINEQUATIONS to MAXEQUATIONS entries into product matrix m_matA
-	iCount = 0;
-	for (j = 0; j < MAGBUFFSIZE; j++) {
-		if (m_aBpIsValid[j]) {
-			// use first valid magnetic buffer entry as offset estimate (bit counts)
-			if (iCount == 0) {
-				BpOffset = m_aBpFast[j];
-			}
+	for (j = 0; j < m_cSamp; j++) {
+		const Point_t& BpCur = m_aSamp[j].m_pntRaw;
 
-			// apply the offset and scaling and store in m_vecA
-			for (k = X; k <= Z; k++) {
-				m_vecA[k + 3] = (m_aBpFast[j][k] - BpOffset[k]) * fscaling;
-				m_vecA[k] = m_vecA[k + 3] * m_vecA[k + 3];
-			}
+		// apply the offset and scaling and store in m_vecA
+		for (k = X; k <= Z; k++) {
+			m_vecA[k + 3] = (BpCur[k] - BpOffset[k]) * fscaling;
+			m_vecA[k] = m_vecA[k + 3] * m_vecA[k + 3];
+		}
 
-			// accumulate the on-and above-diagonal terms of
-			// m_matA=Sigma{m_vecA^T * m_vecA}
-			// with the exception of m_matA[6][6] which will sum to the number
-			// of measurements and remembering that m_vecA[6] equals 1.0F
-			// update the right hand column [6] of m_matA except for m_matA[6][6]
-			for (m = 0; m < 6; m++) {
-				m_matA[m][6] += m_vecA[m];
+		// accumulate the on-and above-diagonal terms of
+		// m_matA=Sigma{m_vecA^T * m_vecA}
+		// with the exception of m_matA[6][6] which will sum to the number
+		// of measurements and remembering that m_vecA[6] equals 1.0F
+		// update the right hand column [6] of m_matA except for m_matA[6][6]
+		for (m = 0; m < 6; m++) {
+			m_matA[m][6] += m_vecA[m];
+		}
+		// update the on and above diagonal terms except for right hand column 6
+		for (m = 0; m < 6; m++) {
+			for (n = m; n < 6; n++) {
+				m_matA[m][n] += m_vecA[m] * m_vecA[n];
 			}
-			// update the on and above diagonal terms except for right hand column 6
-			for (m = 0; m < 6; m++) {
-				for (n = m; n < 6; n++) {
-					m_matA[m][n] += m_vecA[m] * m_vecA[n];
-				}
-			}
-
-			// increment the measurement counter for the next iteration
-			iCount++;
 		}
 	}
 
 	// finally set the last element m_matA[6][6] to the number of measurements
-	m_matA[6][6] = (float) iCount;
-
-	// store the number of measurements accumulated
-	m_cBpIsValid = iCount;
+	m_matA[6][6] = (float) m_cSamp;
 
 	// copy the above diagonal elements of m_matA to below the diagonal
 	for (m = 1; m < 7; m++) {
@@ -525,7 +508,7 @@ void MagCalibrator::UpdateCalibration7EIG()
 
 	// calculate the trial normalized fit error as a percentage
 	m_errorFitNext = 50.0F *
-		sqrtf(fabs(m_vecA[j]) / (float) m_cBpIsValid) / fabs(ftmp);
+		sqrtf(fabs(m_vecA[j]) / (float) m_cSamp) / fabs(ftmp);
 
 	// normalize the ellipsoid matrix A to unit determinant
 	f3x3matrixAeqAxScalar(m_A, powf(det, -(ONETHIRD)));
@@ -553,14 +536,13 @@ void MagCalibrator::UpdateCalibration10EIG()
 	float det;					// matrix determinant
 	float fscaling;				// set to FUTPERCOUNT * FMATRIXSCALING
 	float ftmp;					// scratch variable
-	int16_t iCount;				// number of measurements counted
 	int i, j, k, m, n;			// loop counters
 
 	// compute fscaling to reduce multiplications later
 	fscaling = 1.0F / DEFAULTB;
 
 	// the offsets are guaranteed to be set from the first element but to avoid compiler error
-	Point_t BpOffset;
+	Point_t BpOffset = m_aSamp[0].m_pntRaw;
 
 	// zero the on and above diagonal elements of the 10x10 symmetric measurement matrix m_matA
 	for (m = 0; m < 10; m++) {
@@ -570,51 +552,38 @@ void MagCalibrator::UpdateCalibration10EIG()
 	}
 
 	// sum between MINEQUATIONS to MAXEQUATIONS entries into the 10x10 product matrix m_matA
-	iCount = 0;
-	for (j = 0; j < MAGBUFFSIZE; j++) {
-		if (m_aBpIsValid[j]) {
-			// use first valid magnetic buffer entry as estimate for offset
-			// to help solution (bit counts)
-			if (iCount == 0) {
-				BpOffset = m_aBpFast[j];
-			}
+	for (j = 0; j < m_cSamp; j++) {
+		const Point_t& BpCur = m_aSamp[j].m_pntRaw;
 
-			// apply the fixed offset and scaling and enter into m_vecA[6-8]
-			for (k = X; k <= Z; k++) {
-				m_vecA[k + 6] = (m_aBpFast[j][k] - BpOffset[k]) * fscaling;
-			}
+		// apply the fixed offset and scaling and enter into m_vecA[6-8]
+		for (k = X; k <= Z; k++) {
+			m_vecA[k + 6] = (BpCur[k] - BpOffset[k]) * fscaling;
+		}
 
-			// compute measurement vector elements m_vecA[0-5] from m_vecA[6-8]
-			m_vecA[0] = m_vecA[6] * m_vecA[6];
-			m_vecA[1] = 2.0F * m_vecA[6] * m_vecA[7];
-			m_vecA[2] = 2.0F * m_vecA[6] * m_vecA[8];
-			m_vecA[3] = m_vecA[7] * m_vecA[7];
-			m_vecA[4] = 2.0F * m_vecA[7] * m_vecA[8];
-			m_vecA[5] = m_vecA[8] * m_vecA[8];
+		// compute measurement vector elements m_vecA[0-5] from m_vecA[6-8]
+		m_vecA[0] = m_vecA[6] * m_vecA[6];
+		m_vecA[1] = 2.0F * m_vecA[6] * m_vecA[7];
+		m_vecA[2] = 2.0F * m_vecA[6] * m_vecA[8];
+		m_vecA[3] = m_vecA[7] * m_vecA[7];
+		m_vecA[4] = 2.0F * m_vecA[7] * m_vecA[8];
+		m_vecA[5] = m_vecA[8] * m_vecA[8];
 
-			// accumulate the on-and above-diagonal terms of m_matA=Sigma{m_vecA^T * m_vecA}
-			// with the exception of m_matA[9][9] which equals the number of measurements
-			// update the right hand column [9] of m_matA[0-8][9] ignoring m_matA[9][9]
-			for (m = 0; m < 9; m++) {
-				m_matA[m][9] += m_vecA[m];
+		// accumulate the on-and above-diagonal terms of m_matA=Sigma{m_vecA^T * m_vecA}
+		// with the exception of m_matA[9][9] which equals the number of measurements
+		// update the right hand column [9] of m_matA[0-8][9] ignoring m_matA[9][9]
+		for (m = 0; m < 9; m++) {
+			m_matA[m][9] += m_vecA[m];
+		}
+		// update the on and above diagonal terms of m_matA ignoring right hand column 9
+		for (m = 0; m < 9; m++) {
+			for (n = m; n < 9; n++) {
+				m_matA[m][n] += m_vecA[m] * m_vecA[n];
 			}
-			// update the on and above diagonal terms of m_matA ignoring right hand column 9
-			for (m = 0; m < 9; m++) {
-				for (n = m; n < 9; n++) {
-					m_matA[m][n] += m_vecA[m] * m_vecA[n];
-				}
-			}
-
-			// increment the measurement counter for the next iteration
-			iCount++;
 		}
 	}
 
 	// set the last element m_matA[9][9] to the number of measurements
-	m_matA[9][9] = (float) iCount;
-
-	// store the number of measurements accumulated
-	m_cBpIsValid = iCount;
+	m_matA[9][9] = (float) m_cSamp;
 
 	// copy the above diagonal elements of symmetric product matrix m_matA to below the diagonal
 	for (m = 1; m < 10; m++) {
@@ -675,7 +644,7 @@ void MagCalibrator::UpdateCalibration10EIG()
 
 	// calculate the trial normalized fit error as a percentage
 	m_errorFitNext = 50.0F * sqrtf(
-		fabs(m_vecA[j]) / (float) m_cBpIsValid) /
+		fabs(m_vecA[j]) / (float) m_cSamp) /
 		(m_calNext_B * m_calNext_B);
 
 	// correct for the measurement matrix offset and scaling and
@@ -729,14 +698,23 @@ void MagCalibrator::UpdateCalibration10EIG()
 	}
 }
 
-void MagCalibrator::apply_calibration(const Point_t & Bp, Point_t* pBc)
+void MagCalibrator::apply_calibration(int iSamp)
 {
-	float x = Bp.x - m_cal_V[0];
-	float y = Bp.y - m_cal_V[1];
-	float z = Bp.z - m_cal_V[2];
-	pBc->x = x * m_cal_invW[0][0] + y * m_cal_invW[0][1] + z * m_cal_invW[0][2];
-	pBc->y = x * m_cal_invW[1][0] + y * m_cal_invW[1][1] + z * m_cal_invW[1][2];
-	pBc->z = x * m_cal_invW[2][0] + y * m_cal_invW[2][1] + z * m_cal_invW[2][2];
+	MagSample * pSamp = &m_aSamp[iSamp];
+
+	float x = pSamp->m_pntRaw.x - m_cal_V[0];
+	float y = pSamp->m_pntRaw.y - m_cal_V[1];
+	float z = pSamp->m_pntRaw.z - m_cal_V[2];
+
+	pSamp->m_pntCal.x = x * m_cal_invW[0][0] + y * m_cal_invW[0][1] + z * m_cal_invW[0][2];
+	pSamp->m_pntCal.y = x * m_cal_invW[1][0] + y * m_cal_invW[1][1] + z * m_cal_invW[1][2];
+	pSamp->m_pntCal.z = x * m_cal_invW[2][0] + y * m_cal_invW[2][1] + z * m_cal_invW[2][2];
+
+	x = pSamp->m_pntCal.x;
+	y = pSamp->m_pntCal.y;
+	z = pSamp->m_pntCal.z;
+
+	pSamp->m_field = sqrtf(x * x + y * y + z * z);
 }
 
 } // namespace libcalib

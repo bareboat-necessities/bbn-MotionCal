@@ -1,4 +1,4 @@
-#include "libcalib_quality.h"
+#include "libcalib.h"
 
 #include <math.h>
 #include <string.h>
@@ -22,7 +22,7 @@ constexpr uint32_t DIM(T(&)[N]) { return N; }
 // sphere equations....
 //  area of unit sphere = 4*pi
 //  area of unit sphere cap = 2*pi*h  h = cap height
-//  lattitude of unit sphere cap = arcsin(1 - h)
+//  latitude of unit sphere cap = arcsin(1 - h)
 
 struct SpherePartition
 {
@@ -74,6 +74,15 @@ private:
 		{ s_cRegionPole,		s_radTemperateMin,	s_radSouthPole },
 	};
 	static constexpr int s_cCollar = DIM(s_aCollar);
+
+	static_assert(s_regionMax == (
+					s_aCollar[0].m_cRegion +
+					s_aCollar[1].m_cRegion +
+					s_aCollar[2].m_cRegion +
+					s_aCollar[3].m_cRegion +
+					s_aCollar[4].m_cRegion +
+					s_aCollar[5].m_cRegion));
+	static_assert(s_cCollar == 6);
 };
 
 
@@ -153,143 +162,172 @@ int SpherePartition::RegionFromXyz(float x, float y, float z)
 
 static SpherePartition s_sphere_partition;
 
-// Discussion of what these 4 quality metrics really do
-// https://forum.pjrc.com/threads/59277-Motion-Sensor-Calibration-Tool-Parameter-Understanding
-
-Quality::Quality()
-: m_count(0)
-, m_spheredist()
-, m_spheredata()
-, m_magnitude()
-, m_gaps_buffer(0.0f)
-, m_variance_buffer(0.0f)
-, m_wobble_buffer(0.0f)
-, m_are_gaps_computed(false)
-, m_is_variance_computed(false)
-, m_is_wobble_computed(false)
+MagQuality::MagQuality()
+: m_errGaps(s_errMax)
+, m_errVariance(s_errMax)
+, m_errWobble(s_errMax)
+, m_errFit(s_errMax)
+, m_isValid(false)
+, m_mpRegionCount()
+, m_mpRegionSum()
 {
 }
 
-void Quality::reset()
+void MagQuality::ensure_valid(const MagCalibrator & magcal)
 {
-	m_count = 0;
-	memset(&m_spheredist, 0, sizeof(m_spheredist));
-	memset(&m_spheredata, 0, sizeof(m_spheredata));
-	
-	m_are_gaps_computed = false;
-	m_is_variance_computed = false;
-	m_is_wobble_computed = false;
+	if (m_isValid)
+		return;
+
+	memset(&m_mpRegionCount, 0, sizeof(m_mpRegionCount));
+	memset(&m_mpRegionSum, 0, sizeof(m_mpRegionSum));
+
+	for (int i = 0; i < magcal.m_cSamp; i++)
+	{
+		const MagSample & samp = magcal.m_aSamp[i];
+		const Point_t & pntCal = samp.m_pntCal;
+		float x = pntCal.x;
+		float y = pntCal.y;
+		float z = pntCal.z;
+
+		int region = s_sphere_partition.RegionFromXyz(x, y, z);
+		m_mpRegionCount[region]++;
+		m_mpRegionSum[region].x += x;
+		m_mpRegionSum[region].y += y;
+		m_mpRegionSum[region].z += z;
+	}
+
+	m_errGaps = ErrGaps();
+	m_errVariance = ErrVariance(magcal);
+	m_errWobble = ErrWobble(magcal);
+	m_errFit = magcal.m_errFit;
+
+	m_isValid = true;
 }
 
-void Quality::update(const Point_t *point)
+bool MagQuality::AreErrorsOk() const
 {
-	float x = point->x;
-	float y = point->y;
-	float z = point->z;
-	// NOTE bruceo: uh, what if count is >= MAGBUFFSIZE?
-	//	seems like we could be walking off the end of the array here.
-	// ah, ok. it appears that display_callback() calls Quality::reset()
-	//	before feeding all the MagCalibrator::m_aBpFast calibrated points to this
-	//	routine. so we are guaranteed to never get more than MAGBUFFSIZE
-	//	points.
-	m_magnitude[m_count] = sqrtf(x * x + y * y + z * z);
-	int region = s_sphere_partition.RegionFromXyz(x, y, z);
-	m_spheredist[region]++;
-	m_spheredata[region].x += x;
-	m_spheredata[region].y += y;
-	m_spheredata[region].z += z;
-	m_count++;
-	m_are_gaps_computed = 0;
-	m_is_variance_computed = 0;
-	m_is_wobble_computed = 0;
+	if (m_errGaps >= s_errGapsOkMin)
+		return false;
+	if (m_errVariance >= s_errVarianceOkMin)
+		return false;
+	if (m_errWobble >= s_errWobbleOkMin)
+		return false;
+	if (m_errFit >= s_errFitOkMin)
+		return false;
+
+	return true;
+}
+
+bool MagQuality::AreErrorsBad() const
+{
+	if (m_errGaps <= s_errGapsBadMax)
+		return false;
+	if (m_errVariance <= s_errVarianceBadMax)
+		return false;
+	if (m_errWobble <= s_errWobbleBadMax)
+		return false;
+	if (m_errFit <= s_errFitBadMax)
+		return false;
+
+	return true;
 }
 
 // How many surface gaps
-float Quality::surface_gap_error()
+
+float MagQuality::ErrGaps()
 {
 	float error=0.0f;
-	int i, num;
 
-	if (m_are_gaps_computed) return m_gaps_buffer;
-	for (i=0; i < 100; i++) {
-		num = m_spheredist[i];
-		if (num == 0) {
+	for (int i=0; i < DIM(m_mpRegionCount); i++) {
+		int count = m_mpRegionCount[i];
+
+		if (count == 0) {
 			error += 1.0f;
-		} else if (num == 1) {
+		} else if (count == 1) {
 			error += 0.2f;
-		} else if (num == 2) {
+		} else if (count == 2) {
 			error += 0.01f;
 		}
 	}
-	m_gaps_buffer = error;
-	m_are_gaps_computed = 1;
-	return m_gaps_buffer;
+
+	return error;
 }
 
 // Variance in magnitude
-float Quality::magnitude_variance_error()
-{
-	float sum, mean, diff, variance;
-	int i;
 
-	if (m_is_variance_computed) return m_variance_buffer;
-	sum = 0.0f;
-	for (i=0; i < m_count; i++) {
-		sum += m_magnitude[i];
+float MagQuality::ErrVariance(const MagCalibrator & magcal)
+{
+	if (magcal.m_cSamp == 0)
+		return s_errMax;
+
+	float sum = 0.0f;
+	for (int i=0; i < magcal.m_cSamp; i++) {
+		const MagSample& samp = magcal.m_aSamp[i];
+		sum += samp.m_field;
 	}
-	mean = sum / (float)m_count;
-	variance = 0.0f;
-	for (i=0; i < m_count; i++) {
-		diff = m_magnitude[i] - mean;
+
+	float mean = sum / (float)magcal.m_cSamp;
+	
+	float variance = 0.0f;
+	for (int i=0; i < magcal.m_cSamp; i++) {
+		const MagSample& samp = magcal.m_aSamp[i];
+		float diff = samp.m_field - mean;
 		variance += diff * diff;
 	}
-	variance /= (float)m_count;
-	m_variance_buffer = sqrtf(variance) / mean * 100.0f;
-	m_is_variance_computed = 1;
-	return m_variance_buffer;
+	
+	variance /= (float)magcal.m_cSamp;
+
+	return sqrtf(variance) / mean * s_errMax;
 }
 
 // Offset of piecewise average data from ideal sphere surface
-float Quality::wobble_error()
-{
-	float sum, radius, x, y, z, xi, yi, zi;
-	float xoff=0.0f, yoff=0.0f, zoff=0.0f;
-	int i, n=0;
 
-	if (m_is_wobble_computed) return m_wobble_buffer;
-	sum = 0.0f;
-	for (i=0; i < m_count; i++) {
-		sum += m_magnitude[i];
+float MagQuality::ErrWobble(const MagCalibrator & magcal)
+{
+	if (magcal.m_cSamp == 0)
+		return s_errMax;
+
+	float sum = 0.0f;
+	for (int i=0; i < magcal.m_cSamp; i++) {
+		const MagSample& samp = magcal.m_aSamp[i];
+		sum += samp.m_field;
 	}
-	radius = sum / (float)m_count;
-	//if (pr) printf("  radius = %.2f\n", radius);
-	for (i=0; i < 100; i++) {
-		if (m_spheredist[i] > 0) {
-			//if (pr) printf("  i=%3d", i);
-			x = m_spheredata[i].x / (float)m_spheredist[i];
-			y = m_spheredata[i].y / (float)m_spheredist[i];
-			z = m_spheredata[i].z / (float)m_spheredist[i];
-			//if (pr) printf("  at: %5.1f %5.1f %5.1f :", x, y, z);
-			xi = s_sphere_partition.m_mpRegionAnchor[i].x * radius;
-			yi = s_sphere_partition.m_mpRegionAnchor[i].y * radius;
-			zi = s_sphere_partition.m_mpRegionAnchor[i].z * radius;
-			//if (pr) printf("   ideal: %5.1f %5.1f %5.1f :", xi, yi, zi);
+
+	float radius = sum / (float)magcal.m_cSamp;
+
+	float xoff = 0.0f;
+	float yoff = 0.0f;
+	float zoff = 0.0f;
+	int cRegionHit = 0;
+
+	for (int i=0; i < DIM(m_mpRegionCount); i++)
+	{
+		if (m_mpRegionCount[i] > 0)
+		{
+			float x = m_mpRegionSum[i].x / (float)m_mpRegionCount[i];
+			float y = m_mpRegionSum[i].y / (float)m_mpRegionCount[i];
+			float z = m_mpRegionSum[i].z / (float)m_mpRegionCount[i];
+
+			float xi = s_sphere_partition.m_mpRegionAnchor[i].x * radius;
+			float yi = s_sphere_partition.m_mpRegionAnchor[i].y * radius;
+			float zi = s_sphere_partition.m_mpRegionAnchor[i].z * radius;
+
 			xoff += x - xi;
 			yoff += y - yi;
 			zoff += z - zi;
-			//if (pr) printf("\n");
-			n++;
+
+			cRegionHit++;
 		}
 	}
-	if (n == 0) return 100.0f;
-	//if (pr) printf("  off = %.2f, %.2f, %.2f\n", xoff, yoff, zoff);
-	xoff /= (float)n;
-	yoff /= (float)n;
-	zoff /= (float)n;
-	//if (pr) printf("  off = %.2f, %.2f, %.2f\n", xoff, yoff, zoff);
-	m_wobble_buffer = sqrtf(xoff * xoff + yoff * yoff + zoff * zoff) / radius * 100.0f;
-	m_is_wobble_computed = 1;
-	return m_wobble_buffer;
+
+	if (cRegionHit == 0)
+		return s_errMax;
+	
+	xoff /= (float)cRegionHit;
+	yoff /= (float)cRegionHit;
+	zoff /= (float)cRegionHit;
+
+	return sqrtf(xoff * xoff + yoff * yoff + zoff * zoff) / radius * s_errMax;;
 }
 
 } // namespace libcalib

@@ -252,54 +252,40 @@ MyFrame::MyFrame(wxWindow *parent, wxWindowID id, const wxString &title,
 
 void MyFrame::OnTimer(wxTimerEvent &event)
 {
-	static int firstrun=1;
-	float gaps, variance, wobble, fiterror;
-	int i, j;
-
 	//printf("OnTimer\n");
 	if (port_is_open()) {
 		read_serial_data();
-		if (firstrun && m_canvas->IsShown()) {
-			//int h, w;
-			//m_canvas->GetSize(&w, &h);
-			//printf("Canvas initial size = %d, %d\n", w, h);
-			firstrun = 0;
-		}
 		m_canvas->Refresh();
-		gaps = calib.quality_surface_gap_error();
-		variance = calib.quality_magnitude_variance_error();
-		wobble = calib.quality_wobble_error();
-		fiterror = calib.quality_spherical_fit_error();
-		if (gaps < 15.0f && variance < 4.5f && wobble < 4.0f && fiterror < 5.0f) {
+		if (calib.m_magcal.AreErrorsOk()) {
 			if (!m_sendcal_menu->IsEnabled(ID_SENDCAL_MENU) || !m_button_sendcal->IsEnabled()) {
 				m_sendcal_menu->Enable(ID_SENDCAL_MENU, true);
 				m_button_sendcal->Enable(true);
 				m_confirm_icon->SetBitmap(MyBitmap("checkempty.png"));
 			}
-		} else if (gaps > 20.0f && variance > 5.0f && wobble > 5.0f && fiterror > 6.0f) {
+		} else if (calib.m_magcal.AreErrorsBad()) {
 			if (m_sendcal_menu->IsEnabled(ID_SENDCAL_MENU) || m_button_sendcal->IsEnabled()) {
 				m_sendcal_menu->Enable(ID_SENDCAL_MENU, false);
 				m_button_sendcal->Enable(false);
 				m_confirm_icon->SetBitmap(MyBitmap("checkemptygray.png"));
 			}
 		}
-		m_err_coverage->SetLabelText(wxString::Format("%.1f%%", calib.quality_surface_gap_error()));
-		m_err_variance->SetLabelText(wxString::Format("%.1f%%", calib.quality_magnitude_variance_error()));
-		m_err_wobble->SetLabelText(wxString::Format("%.1f%%", calib.quality_wobble_error()));
-		m_err_fit->SetLabelText(wxString::Format("%.1f%%", calib.quality_spherical_fit_error()));
-		for (i=0; i < 3; i++) {
+		m_err_coverage->SetLabelText(wxString::Format("%.1f%%", calib.m_magcal.ErrGaps()));
+		m_err_variance->SetLabelText(wxString::Format("%.1f%%", calib.m_magcal.ErrVariance()));
+		m_err_wobble->SetLabelText(wxString::Format("%.1f%%", calib.m_magcal.ErrWobble()));
+		m_err_fit->SetLabelText(wxString::Format("%.1f%%", calib.m_magcal.ErrFit()));
+		for (int i=0; i < 3; i++) {
 			m_mag_offset[i]->SetLabelText(wxString::Format("%.2f", calib.m_magcal.m_cal_V[i]));
 		}
-		for (i=0; i < 3; i++) {
-			for (j=0; j < 3; j++) {
+		for (int i=0; i < 3; i++) {
+			for (int j=0; j < 3; j++) {
 				m_mag_mapping[i][j]->SetLabelText(wxString::Format("%+.3f", calib.m_magcal.m_cal_invW[i][j]));
 			}
 		}
 		m_mag_field->SetLabelText(wxString::Format("%.2f", calib.m_magcal.m_cal_B));
-		for (i=0; i < 3; i++) {
+		for (int i=0; i < 3; i++) {
 			m_accel[i]->SetLabelText(wxString::Format("%.3f", 0.0f)); // TODO...
 		}
-		for (i=0; i < 3; i++) {
+		for (int i=0; i < 3; i++) {
 			m_gyro[i]->SetLabelText(wxString::Format("%.3f", 0.0f)); // TODO...
 		}
 	} else {
@@ -332,7 +318,8 @@ void MyFrame::OnSendCal(wxCommandEvent &event)
 	//printf("OnSendCal\n");
 	//const auto & V = calib.m_magcal.m_cal_V;
 	//const auto & invW = calib.m_magcal.m_cal_invW;
-	//printf("Magnetic Calibration:   (%.1f%% fit error)\n", calib.quality_spherical_fit_error());
+	//const auto & errFit = calib.m_magcal.m_errFit;
+	//printf("Magnetic Calibration:   (%.1f%% fit error)\n", errFit);
 	//printf("   %7.2f   %6.3f %6.3f %6.3f\n",
 	//	V[0], invW[0][0], invW[0][1], invW[0][2]);
 	//printf("   %7.2f   %6.3f %6.3f %6.3f\n",

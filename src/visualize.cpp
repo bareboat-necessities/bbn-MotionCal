@@ -31,53 +31,48 @@ static GLuint spherelowreslist;
 
 void display_callback()
 {
-	int i;
-	float xscale, yscale, zscale;
-	float xoff, yoff, zoff;
-	float rotation[9];
-	libcalib::Point_t Bc, draw;
-	libcalib::Quaternion_t orientation;
+	calib.m_magcal.ensure_quality();
 
-	calib.quality_reset();
+	float xscale = 0.05;
+	float yscale = 0.05;
+	float zscale = 0.05;
+	float xoff = 0.0;
+	float yoff = 0.0;
+	float zoff = -7.0;
+
+	libcalib::Quaternion_t orientation = calib.m_current_orientation;
+	
+	// TODO: this almost but doesn't perfectly seems to get the
+	//  real & screen axes in sync....
+	orientation.q3 *= -1.0f;
+
+	float rotation[9];
+	quad_to_rotation(&orientation, rotation);
+
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	glColor3f(1, 0, 0);	// set current color to red
 	glLoadIdentity();
-	xscale = 0.05;
-	yscale = 0.05;
-	zscale = 0.05;
-	xoff = 0.0;
-	yoff = 0.0;
-	zoff = -7.0;
+	
+	for (int i = 0; i < calib.m_magcal.m_cSamp; ++i)
+	{
+		const auto & samp = calib.m_magcal.m_aSamp[i];
+		const libcalib::Point_t * pBc = &samp.m_pntCal;
+		libcalib::Point_t draw;
 
-	//if (hard_iron.valid) {
-	if (1) {
-		orientation = calib.m_current_orientation;
-		// TODO: this almost but doesn't perfectly seems to get the
-		//  real & screen axes in sync....
-		orientation.q3 *= -1.0f;
-		quad_to_rotation(&orientation, rotation);
+		rotate(pBc, &draw, rotation);
 
-		for (i=0; i < libcalib::MAGBUFFSIZE; i++) {
-			if (calib.m_magcal.m_aBpIsValid[i]) {
-				calib.m_magcal.apply_calibration(
-					calib.m_magcal.m_aBpFast[i],
-					&Bc);
-				calib.quality_update(&Bc);
-				rotate(&Bc, &draw, rotation);
-				glPushMatrix();
-				glTranslatef(
-					draw.x * xscale + xoff,
-					draw.z * yscale + yoff,
-					draw.y * zscale + zoff
-				);
-				if (draw.y >= 0.0f) {
-					glCallList(spherelist);
-				} else {
-					glCallList(spherelowreslist);
-				}
-				glPopMatrix();
-			}
+		glPushMatrix();
+		glTranslatef(
+			draw.x * xscale + xoff,
+			draw.z * yscale + yoff,
+			draw.y * zscale + zoff
+		);
+		if (draw.y >= 0.0f) {
+			glCallList(spherelist);
+		} else {
+			glCallList(spherelowreslist);
 		}
+		glPopMatrix();
 	}
 }
 

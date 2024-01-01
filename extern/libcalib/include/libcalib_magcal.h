@@ -8,33 +8,55 @@
 namespace libcalib
 {
 
+struct MagSample
+{
+    Point_t m_pntRaw;   // raw sample
+    Point_t m_pntCal;   // calibrated sample
+    float   m_field;    // length of calibrated sample
+};
+
 // magnetic calibration & buffer structure
 
-class MagCalibrator
+struct MagCalibrator
 {
-public:
-
     MagCalibrator();
 
 	void reset()
 	        { *this = MagCalibrator(); }
-	void add_magcal_data(const Point_t & BpFast);
+	void add_magcal_data(const Point_t & BpFast, Point_t * pBcFast);
 	bool get_new_calibration();
-	void apply_calibration(const Point_t & Bp, Point_t* pBc);
 
-    float m_cal_V[3];                  // current hard iron offset x, y, z, (uT)
-    float m_cal_invW[3][3];            // current inverse soft iron matrix
-    float m_cal_B;                     // current geomagnetic field magnitude (uT)
-    float m_errorFit;              // current fit error %
-    int8_t m_isValid;          // integer value 0, 4, 7, 10 denoting both valid calibration and solver used
-    Point_t m_aBpFast[MAGBUFFSIZE];   // uncalibrated magnetometer readings
-    int8_t  m_aBpIsValid[MAGBUFFSIZE];        // 1=has data, 0=empty slot
-    int16_t m_cBpIsValid;           // number of magnetometer readings
+    void ensure_quality()
+        { m_quality.ensure_valid(*this); }
+
+    bool AreErrorsOk() const
+        { return m_quality.AreErrorsOk(); }
+    bool AreErrorsBad() const
+        { return m_quality.AreErrorsBad(); }
+
+	float ErrGaps() const
+        { return m_quality.m_errGaps; }
+	float ErrVariance() const
+        { return m_quality.m_errVariance; }
+	float ErrWobble() const
+        { return m_quality.m_errWobble; }
+	float ErrFit() const
+        { return m_quality.m_errFit; }
+
+    float m_cal_V[3];                   // current hard iron offset x, y, z, (uT)
+    float m_cal_invW[3][3];             // current inverse soft iron matrix
+    float m_cal_B;                      // current geomagnetic field magnitude (uT)
+    float m_errFit;                     // current fit error %
+    int8_t m_isValid;                   // integer value 0, 4, 7, 10 denoting both valid calibration and solver used
+	int16_t m_cSamp;                    // number of magnetometer samples
+    MagSample m_aSamp[MAGBUFFSIZE];     // magnetometer samples
 
 private:
     friend class Calibrator;
 
-	int choose_discard_magcal();
+	void apply_calibration(int iSamp);
+
+    int choose_discard_magcal();
 
 	void UpdateCalibration4INV();
 	void UpdateCalibration7EIG();
@@ -55,9 +77,9 @@ private:
 	int m_discard_count;                // choose_discard_magcal() counter for choosing field strength discards
     int m_new_wait_count;               // number of times get_new_calibration() had been called without doing any work
 
-	libcalib::Quality m_quality;
+	libcalib::MagQuality m_quality;
 
-    static const int s_new_wait_count_max = 20; // in get_new_calibration() only do work after this many calls
+    static constexpr int s_new_wait_count_max = 20; // in get_new_calibration() only do work after this many calls
 };
 
 } // namespace libcalib

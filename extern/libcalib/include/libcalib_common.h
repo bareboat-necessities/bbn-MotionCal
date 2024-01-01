@@ -27,7 +27,9 @@ struct Point_t
 	float y;
 	float z;
 
-	float operator[](int i)
+	float & operator[](int i)
+		{ return (&x)[i]; }
+	const float & operator[](int i) const
 		{ return (&x)[i]; }
 };
 
