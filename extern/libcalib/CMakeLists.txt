@@ -1,5 +1,5 @@
 project(libcalib)
-set(CMAKE_STATIC_LIBRARY_PREFIX "")
+set(CMAKE_STATIC_LIBRARY_PREFIX "")	# don't prefix library name with "lib"
 
 add_library(libcalib STATIC)
 
