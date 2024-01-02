@@ -1,1 +1,2 @@
 add_subdirectory(libcalib)
+add_subdirectory(Adafruit_AHRS)
