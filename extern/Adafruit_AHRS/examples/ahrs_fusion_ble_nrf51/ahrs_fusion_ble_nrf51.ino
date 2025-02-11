@@ -56,7 +56,7 @@ float mag_offsets[3]            = { 2.45F, -4.55F, -26.93F };
 
 // Soft iron error compensation matrix
 float mag_softiron_matrix[3][3] = { {  0.961,  -0.001,  0.025 },
-                                    {  0.001,  0.886,  0.015 },
+                                    { -0.001,  0.886,  0.015 },
                                     {  0.025,  0.015,  1.176 } };
 
 float mag_field_strength        = 44.12F;
