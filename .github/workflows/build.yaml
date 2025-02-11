@@ -23,7 +23,7 @@ jobs:
 
       - name: Build
         run: |
-          cd $HOME/work/bbn-MotionCal && mkdir build && cd build
+          cd $HOME/work/bbn-MotionCal/bbn-MotionCal && mkdir build && cd build
           cmake ..
           make -j 4
           
