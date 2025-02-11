@@ -25,5 +25,5 @@ jobs:
         run: |
           cd bbn-MotionCal && mkdir build && cd build
           cmake ..
-          make
+          make -j 4
           
