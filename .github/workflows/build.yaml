@@ -1,1 +1,18 @@
+name: Rust ARM64 Build
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04-arm
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
 
